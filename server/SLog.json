@@ -1,0 +1,8 @@
+{
+  "PostgreSQL": {
+    "host": "jdbc:postgresql://192.168.5.41:5432/servisofts.compra_venta",
+    "status": "exito"
+  },
+  "- SLog": "RealTime Log from server Servisofts",
+  "- Fecha": "2022-12-06T00:31:56.000435"
+}
