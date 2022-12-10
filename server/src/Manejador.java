@@ -14,23 +14,17 @@ public class Manejador {
             return;
         }
         switch (obj.getString("component")) {
-            case Dato.COMPONENT:
-                Dato.onMessage(obj, session);
+            case CompraVenta.COMPONENT:
+                CompraVenta.onMessage(obj, session);
                 break;
-            case RolDato.COMPONENT:
-                RolDato.onMessage(obj, session);
+            case CompraVentaDetalle.COMPONENT:
+                CompraVentaDetalle.onMessage(obj, session);
                 break;
-            case UsuarioDato.COMPONENT:
-                UsuarioDato.onMessage(obj, session);
+            case CompraVentaDetalleProducto.COMPONENT:
+                CompraVentaDetalleProducto.onMessage(obj, session); 
                 break;
-            case Banco.COMPONENT:
-                Banco.onMessage(obj, session);
-                break;
-            case BancoCuenta.COMPONENT:
-                BancoCuenta.onMessage(obj, session);
-                break;
-            case CuentaMovimiento.COMPONENT:
-                CuentaMovimiento.onMessage(obj, session);
+            case Cuota.COMPONENT:
+                Cuota.onMessage(obj, session);
                 break;
         }
     }
