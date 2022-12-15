@@ -32,7 +32,7 @@ public class CompraVentaDetalle {
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_all('" + COMPONENT + "') as json";
+            String consulta = "select get_all('" + COMPONENT + "', 'key_compra_venta', '"+obj.getString("key_compra_venta")+"') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -95,7 +95,14 @@ public class CompraVentaDetalle {
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
             obj.put("data", data);
             obj.put("estado", "exito");
-            obj.put("sendAll", true );
+            JSONObject compraVentaParticipantes = CompraVentaParticipante.getAll(data.getString("key_compra_venta"));
+            JSONArray key_usuarios = new JSONArray();
+            for (int i = 0; i < JSONObject.getNames(compraVentaParticipantes).length; i++) {
+                key_usuarios.put(compraVentaParticipantes.getJSONObject(JSONObject.getNames(compraVentaParticipantes)[i]).getString("key_usuario_participante"));
+            } 
+
+            obj.put("sendUsers", key_usuarios);
+            
         } catch (Exception e) {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
@@ -127,8 +134,15 @@ public class CompraVentaDetalle {
             JSONObject data = obj.getJSONObject("data");
             SPGConect.editObject(COMPONENT, data);
             obj.put("data", data);
+
             obj.put("estado", "exito");
-            obj.put("sendAll", true);
+            JSONObject compraVentaParticipantes = CompraVentaParticipante.getAll(data.getString("key_compra_venta"));
+            JSONArray key_usuarios = new JSONArray();
+            for (int i = 0; i < JSONObject.getNames(compraVentaParticipantes).length; i++) {
+                key_usuarios.put(compraVentaParticipantes.getJSONObject(JSONObject.getNames(compraVentaParticipantes)[i]).getString("key_usuario_participante"));
+            } 
+
+            obj.put("sendUsers", key_usuarios);
         } catch (Exception e) {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());

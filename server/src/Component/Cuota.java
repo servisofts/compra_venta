@@ -116,6 +116,13 @@ public class Cuota {
             }
             
             SPGConect.insertArray(COMPONENT, data);
+
+            JSONObject compra_venta = new JSONObject();
+            compra_venta.put("key", obj.getString("key_compra_venta"));
+            compra_venta.put("periodicidad_medida", obj.getString("periodicidad_medida"));
+            compra_venta.put("periodicidad_valor", obj.getInt("periodicidad_valor"));
+            SPGConect.editObject("compra_venta", compra_venta);
+
             obj.put("data", data);
             obj.put("estado", "exito");
             obj.put("sendAll", true);

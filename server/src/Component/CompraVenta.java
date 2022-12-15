@@ -4,6 +4,9 @@ import java.util.UUID;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import com.google.gson.JsonObject;
+
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
 import Server.SSSAbstract.SSServerAbstract;
@@ -31,7 +34,7 @@ public class CompraVenta {
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_all('" + COMPONENT + "') as json";
+            String consulta = "select get_all_compra_venta('"+obj.getString("key_usuario")+"') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -83,14 +86,15 @@ public class CompraVenta {
 
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
 
-            JSONObject participante = new JSONObject();
-            participante.put("key", SUtil.uuid());
-            participante.put("estado", 1);
-            participante.put("fecha_on", SUtil.now());
-            participante.put("key_usuario", obj.getString("key_usuario"));
-            participante.put("key_compra_venta", data.getString("key"));
-            participante.put("tipo", "admin");
-            SPGConect.insertArray("participante", new JSONArray().put(participante));
+            JSONObject compra_venta_participante = new JSONObject();
+            compra_venta_participante.put("key", SUtil.uuid());
+            compra_venta_participante.put("estado", 1);
+            compra_venta_participante.put("fecha_on", SUtil.now());
+            compra_venta_participante.put("key_usuario", obj.getString("key_usuario"));
+            compra_venta_participante.put("key_compra_venta", data.getString("key"));
+            compra_venta_participante.put("key_usuario_participante", obj.getString("key_usuario"));
+            compra_venta_participante.put("tipo", "admin");
+            SPGConect.insertArray("compra_venta_participante", new JSONArray().put(compra_venta_participante));
 
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -113,9 +117,21 @@ public class CompraVenta {
             JSONObject data = obj.getJSONObject("data");
             SPGConect.editObject(COMPONENT, data);
 
+
             obj.put("data", data);
             obj.put("estado", "exito");
-            obj.put("sendAll", true);
+
+            if(data.getString("state").equals("comprado")){
+                obj.put("sendAll", true);
+            }else{
+                JSONObject compraVentaParticipantes = CompraVentaParticipante.getAll(data.getString("key"));
+                JSONArray key_usuarios = new JSONArray();
+                for (int i = 0; i < JSONObject.getNames(compraVentaParticipantes).length; i++) {
+                    key_usuarios.put(compraVentaParticipantes.getJSONObject(JSONObject.getNames(compraVentaParticipantes)[i]).getString("key_usuario_participante"));
+                } 
+
+                obj.put("sendUsers", key_usuarios);
+            }
 
 
         } catch (Exception e) {
