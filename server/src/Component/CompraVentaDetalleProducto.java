@@ -94,15 +94,48 @@ public class CompraVentaDetalleProducto {
         }
     }
 
-    public static void editar(JSONObject obj, SSSessionAbstract session) {
+    public static void registro(String key_compra_venta_detalle, String key_usuario, String key_sucursal, String key_producto) {
         try {
 
-            JSONObject aux = getByKey(obj.getJSONObject("data").getString("key"));
-            aux.put("key_compra_venta", JSONObject.getNames(aux)[0]);
-            aux.put("key", SUtil.uuid());
-            SPGConect.insertArray(COMPONENT+"_historico", new JSONArray().put(aux));
+            JSONObject compraVentaDetalle = CompraVentaDetalle.getByKey(key_compra_venta_detalle);
+            JSONObject compraVenta = CompraVenta.getByKey(compraVentaDetalle.getString("key_compra_venta"));
 
+            JSONObject data = new JSONObject();
+            data.put("key", SUtil.uuid());
+            data.put("estado", 1);
+            data.put("state", "cotizacion");
+            data.put("fecha_on", SUtil.now());
+            data.put("key_usuario", key_usuario);
+            data.put("key_sucursal", key_sucursal);
+            data.put("key_compra_venta_detalle", compraVentaDetalle.getString("key"));
+
+
+
+            if(compraVenta.getString("tipo").equals("compra")){
+                if(CompraVentaDetalle.getCantidadCompraProductosDisponibles(key_compra_venta_detalle)<=0){
+                    return ;
+                }
+            }else{
+                data.put("key_producto", key_producto);
+            }
+
+            SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
+
+            
+            
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+
+    public static void editar(JSONObject obj, SSSessionAbstract session) {
+        try {
             JSONObject data = obj.getJSONObject("data");
+            if(obj.has("fecha_off")){
+                data.put("fecha_off", SUtil.now()); 
+            }
             SPGConect.editObject(COMPONENT, data);
             obj.put("data", data);
             obj.put("estado", "exito");

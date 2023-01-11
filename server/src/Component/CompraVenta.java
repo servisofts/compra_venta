@@ -1,15 +1,9 @@
 package Component;
 
-import java.util.UUID;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
-
-import com.google.gson.JsonObject;
-
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
-import Server.SSSAbstract.SSServerAbstract;
 import Server.SSSAbstract.SSSessionAbstract;
 
 public class CompraVenta {
@@ -45,7 +39,35 @@ public class CompraVenta {
         }
     }
 
-    
+    public static boolean verificarProductosVigentes(String key_compra_venta) {
+        try {
+            String consulta = "select get_compra_venta_detalle_productos('" + key_compra_venta + "') as json";
+            JSONObject compra_venta_detalle_productos =  SPGConect.ejecutarConsultaObject(consulta);
+            
+
+            JSONObject cpdp;
+
+            JSONObject venta;
+
+            boolean vigentes = true;
+
+            for (int i = 0; i < JSONObject.getNames(compra_venta_detalle_productos).length; i++) {
+                cpdp = compra_venta_detalle_productos.getJSONObject(JSONObject.getNames(compra_venta_detalle_productos)[i]);
+                consulta = "select is_producto_vendido('" + cpdp.getString("key_producto") + "') as json";                
+                venta =  SPGConect.ejecutarConsultaObject(consulta);
+                if(!venta.isEmpty()){
+                    vigentes = false;
+                }
+            }
+            
+
+
+            return vigentes;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
     
     public static void getByKey(JSONObject obj, SSSessionAbstract session) {
         try {
@@ -80,8 +102,11 @@ public class CompraVenta {
             data.put("key_usuario", obj.getString("key_usuario"));
             data.put("key_servicio", obj.getJSONObject("servicio").getString("key"));
 
+            boolean isVenta = false;
+
             if(obj.has("key_sucursal")){
                 data.put("key_sucursal", obj.getString("key_sucursal"));    
+                isVenta = true;
             }
 
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
@@ -96,6 +121,17 @@ public class CompraVenta {
             compra_venta_participante.put("tipo", "admin");
             SPGConect.insertArray("compra_venta_participante", new JSONArray().put(compra_venta_participante));
 
+            JSONObject data_ = new JSONObject();
+            if(isVenta){
+                data_.put("url", "/venta/profile?pk="+data.getString("key"));
+                data_.put("tipo", "venta");
+            }else{
+                data_.put("url", "/compra/profile?pk="+data.getString("key"));
+                data_.put("tipo", "compra");
+            }
+            
+            Notificar.send("Registraste "+data.getString("descripcion"), data.getString("observacion"), data_, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
+
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
@@ -108,13 +144,31 @@ public class CompraVenta {
     public static void editar(JSONObject obj, SSSessionAbstract session) {
         try {
 
+            JSONObject data = obj.getJSONObject("data");
+
+            boolean vigentes = true;
+            if(data.getString("state").equals("vendido")){
+                vigentes = CompraVenta.verificarProductosVigentes(data.getString("key"));
+            }
+
+            if(!vigentes){
+                obj.put("estado", "error");;
+                obj.put("error", "Algunos productos ya no estan vigentes");
+                return;
+            }
+
+            if(data.getString("state").equals("comprado")){
+                
+            }
+
+
             JSONObject aux = getByKey(obj.getJSONObject("data").getString("key"));
-            aux.put("key_compra_venta", JSONObject.getNames(aux)[0]);
+            aux.put("key_compra_venta", aux.getString("key"));
             aux.put("key", SUtil.uuid());
             aux.put("fecha_on", SUtil.now());
             SPGConect.insertArray(COMPONENT+"_historico", new JSONArray().put(aux));
 
-            JSONObject data = obj.getJSONObject("data");
+            
             SPGConect.editObject(COMPONENT, data);
 
 
@@ -122,6 +176,9 @@ public class CompraVenta {
             obj.put("estado", "exito");
 
             if(data.getString("state").equals("comprado")){
+
+
+
                 obj.put("sendAll", true);
             }else{
                 JSONObject compraVentaParticipantes = CompraVentaParticipante.getAll(data.getString("key"));

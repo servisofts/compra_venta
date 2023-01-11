@@ -32,6 +32,12 @@ public class Manejador {
             case CompraVentaComentario.COMPONENT:
                 CompraVentaComentario.onMessage(obj, session);
                 break;
+            case CompraVentaHistorico.COMPONENT:
+                CompraVentaHistorico.onMessage(obj, session);
+                break;
+            case CuotaAmortizacion.COMPONENT:
+                CuotaAmortizacion.onMessage(obj, session);
+                break;
         }
     }
 }

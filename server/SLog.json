@@ -1,8 +1,14 @@
 {
+  "Servicios": {
+    "notification": {
+      "host": "192.168.0.199:10033",
+      "status": "desconectado"
+    }
+  },
   "PostgreSQL": {
     "host": "jdbc:postgresql://192.168.5.41:5432/servisofts.compra_venta",
     "status": "exito"
   },
   "- SLog": "RealTime Log from server Servisofts",
-  "- Fecha": "2022-12-14T20:28:49.000498"
+  "- Fecha": "2023-01-11T02:39:27.000878"
 }

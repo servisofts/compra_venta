@@ -6,6 +6,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
+import SocketCliente.SocketCliente;
 import Server.SSSAbstract.SSServerAbstract;
 import Server.SSSAbstract.SSSessionAbstract;
 
@@ -95,7 +96,22 @@ public class CompraVentaParticipante {
             } 
 
             obj.put("sendUsers", key_usuarios);
+
+            JSONObject compraVenta = CompraVenta.getByKey(data.getString("key_compra_venta"));
+
+            JSONObject data_ = new JSONObject();
+            data_.put("key_invitador", obj.getString("key_usuario"));
             
+            if(compraVenta.getString("tipo").equals("compra")){
+                data_.put("url", "/compra/profile?pk="+data.getString("key_compra_venta"));
+                data_.put("tipo", "compra");
+            }else{
+                data_.put("url", "/venta/profile?pk="+data.getString("key_compra_venta"));
+                data_.put("tipo", "venta");
+                
+            }
+
+            Notificar.send("Te invitaron a "+compraVenta.getString("descripcion"), compraVenta.getString("observacion"), data_, obj.getJSONObject("servicio").getString("key"), data.getString("key_usuario_participante"));            
 
         } catch (Exception e) {
             obj.put("estado", "error");

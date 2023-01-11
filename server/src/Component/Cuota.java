@@ -20,6 +20,9 @@ public class Cuota {
             case "registro":
                 registro(obj, session);
                 break;
+            case "getPendientes":
+                getPendientes(obj, session);
+                break;
             case "registroAll":
                 registroAll(obj, session);
                 break;
@@ -41,6 +44,19 @@ public class Cuota {
             e.printStackTrace();
         }
     }
+
+    public static void getPendientes(JSONObject obj, SSSessionAbstract session) {
+            try {
+                String consulta = "select get_cobranzas() as json";
+                JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+                obj.put("data", data);
+                obj.put("estado", "exito");
+            } catch (Exception e) {
+                obj.put("estado", "error");
+                obj.put("error", e.getMessage());
+                e.printStackTrace();
+            }
+        }
 
     public static JSONObject getAll(String key_compra_venta) {
         try {
@@ -121,6 +137,8 @@ public class Cuota {
             compra_venta.put("key", obj.getString("key_compra_venta"));
             compra_venta.put("periodicidad_medida", obj.getString("periodicidad_medida"));
             compra_venta.put("periodicidad_valor", obj.getInt("periodicidad_valor"));
+            compra_venta.put("porcentaje_interes", obj.getInt("porcentaje_interes"));
+            compra_venta.put("tipo_pago", obj.getString("tipo_pago"));
             SPGConect.editObject("compra_venta", compra_venta);
 
             obj.put("data", data);

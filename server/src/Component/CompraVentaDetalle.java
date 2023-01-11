@@ -27,6 +27,9 @@ public class CompraVentaDetalle {
             case "comprasSinRecepcionar":
                 comprasSinRecepcionar(obj, session);
                 break;
+            case "ventasSinEntregar":
+                ventasSinEntregar(obj, session);
+                break;
         }
     }
 
@@ -43,7 +46,6 @@ public class CompraVentaDetalle {
         }
     }
 
-    
 
     public static int getCantidadCompraProductosDisponibles(String key_compra_venta_detalle) {
         try {
@@ -87,14 +89,20 @@ public class CompraVentaDetalle {
             data.put("state", "cotizacion");
             data.put("fecha_on", SUtil.now());
             data.put("key_usuario", obj.getString("key_usuario"));
-            data.put("key_servicio", obj.getJSONObject("servicio").getString("key"));
-
+            String key_sucursal = null;
             if(obj.has("key_sucursal")){
-                data.put("key_sucursal", obj.getString("key_sucursal"));    
+                key_sucursal = obj.getString("key_sucursal");
+                data.put("key_sucursal", key_sucursal);
             }
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
+
+            if(obj.has("key_producto")){
+                CompraVentaDetalleProducto.registro(data.getString("key"), obj.getString("key_usuario"), key_sucursal, obj.getString("key_producto"));
+            }
+
             obj.put("data", data);
             obj.put("estado", "exito");
+
             JSONObject compraVentaParticipantes = CompraVentaParticipante.getAll(data.getString("key_compra_venta"));
             JSONArray key_usuarios = new JSONArray();
             for (int i = 0; i < JSONObject.getNames(compraVentaParticipantes).length; i++) {
@@ -113,6 +121,19 @@ public class CompraVentaDetalle {
     public static void comprasSinRecepcionar(JSONObject obj, SSSessionAbstract session) {
         try {
             String consulta = "select compras_sin_recepcionar('" + obj.getString("key_sucursal") + "') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void ventasSinEntregar(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select ventas_sin_entregar('" + obj.getString("key_sucursal") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
