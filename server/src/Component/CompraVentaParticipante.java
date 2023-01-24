@@ -1,13 +1,9 @@
 package Component;
 
-import java.util.UUID;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
-import SocketCliente.SocketCliente;
-import Server.SSSAbstract.SSServerAbstract;
 import Server.SSSAbstract.SSSessionAbstract;
 
 public class CompraVentaParticipante {

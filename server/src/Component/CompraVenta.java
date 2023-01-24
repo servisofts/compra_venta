@@ -23,6 +23,9 @@ public class CompraVenta {
             case "editar":
                 editar(obj, session);
                 break;
+            case "pdf":
+                pdf(obj, session);
+                break;
         }
     }
 
@@ -122,15 +125,18 @@ public class CompraVenta {
             SPGConect.insertArray("compra_venta_participante", new JSONArray().put(compra_venta_participante));
 
             JSONObject data_ = new JSONObject();
-            if(isVenta){
-                data_.put("url", "/venta/profile?pk="+data.getString("key"));
-                data_.put("tipo", "venta");
-            }else{
+            String tipo_registro_icon;
+            if(data.getString("tipo").equals("compra")){
                 data_.put("url", "/compra/profile?pk="+data.getString("key"));
                 data_.put("tipo", "compra");
+                tipo_registro_icon = "🛍️";
+            }else{
+                data_.put("url", "/venta/profile?pk="+data.getString("key"));
+                data_.put("tipo", "venta");
+                tipo_registro_icon = "🏷️";
             }
             
-            Notificar.send("Registraste "+data.getString("descripcion"), data.getString("observacion"), data_, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
+            Notificar.send(tipo_registro_icon+" Registraste "+data.getString("descripcion"), data.getString("observacion"), data_, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
 
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -198,5 +204,17 @@ public class CompraVenta {
         }
     }
 
+    public static void pdf(JSONObject obj, SSSessionAbstract session) {
+        try {
+            
+            new PDF().generarCompraVenta(obj.getString("key_compra_venta"));
+            obj.put("data", obj.getString("key_compra_venta"));
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
 }

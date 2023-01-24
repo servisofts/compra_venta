@@ -28,7 +28,7 @@ public class CuotaAmortizacion {
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_all('" + COMPONENT + "', 'key_compra_venta', '"+obj.getString("key_compra_venta")+"') as json";
+            String consulta = "select get_all('" + COMPONENT + "', 'key_cuota', '"+obj.getString("key_cuota")+"') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");

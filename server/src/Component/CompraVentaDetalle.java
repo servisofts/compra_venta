@@ -24,6 +24,9 @@ public class CompraVentaDetalle {
             case "editar":
                 editar(obj, session);
                 break;
+            case "cambiarPrecios":
+                cambiarPrecios(obj, session);
+                break;
             case "comprasSinRecepcionar":
                 comprasSinRecepcionar(obj, session);
                 break;
@@ -43,6 +46,15 @@ public class CompraVentaDetalle {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
             e.printStackTrace();
+        }
+    }
+    public static JSONObject getAll(String key_compra_venta) {
+        try {
+            String consulta = "select get_all('" + COMPONENT + "', 'key_compra_venta', '"+key_compra_venta+"') as json";
+            return SPGConect.ejecutarConsultaObject(consulta);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
@@ -130,6 +142,38 @@ public class CompraVentaDetalle {
             e.printStackTrace();
         }
     }
+    public static void cambiarPrecios(JSONObject obj, SSSessionAbstract session) {
+        try {
+            
+            JSONObject compra_venta = CompraVenta.getByKey(obj.getString("key_compra_venta") );
+
+            JSONObject compraVentaDetalles = CompraVentaDetalle.getAll(obj.getString("key_compra_venta"));
+
+            JSONObject compraVentaDetalle;
+            double precio;
+            for (int i = 0; i < JSONObject.getNames(compraVentaDetalles).length; i++) {
+                compraVentaDetalle = compraVentaDetalles.getJSONObject(JSONObject.getNames(compraVentaDetalles)[i]);
+
+                if(compra_venta.getString("tipo_pago").equals("contado")){
+                    precio = compraVentaDetalle.getJSONObject("data").getDouble("precio_venta");
+                }else{
+                    precio = compraVentaDetalle.getJSONObject("data").getDouble("precio_venta_credito");
+                }
+
+                compraVentaDetalle.put("precio_unitario", precio);
+                SPGConect.editObject("compra_venta_detalle", compraVentaDetalle);
+            }
+            
+            
+            obj.put("data", compraVentaDetalles);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
 
     public static void ventasSinEntregar(JSONObject obj, SSSessionAbstract session) {
         try {

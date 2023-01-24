@@ -29,8 +29,10 @@ public class CompraVentaDetalleProducto {
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_all('" + COMPONENT + "') as json";
-            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+
+            String consulta = "select get_compra_venta_detalle_productos('" + obj.getString("key_compra_venta") + "') as json";
+            JSONObject data =  SPGConect.ejecutarConsultaObject(consulta);
+
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
