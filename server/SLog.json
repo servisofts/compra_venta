@@ -1,7 +1,7 @@
 {
   "Servicios": {
     "notification": {
-      "host": "192.168.0.199:10033",
+      "host": "192.168.5.33:10033",
       "status": "exito"
     }
   },
@@ -10,5 +10,5 @@
     "status": "exito"
   },
   "- SLog": "RealTime Log from server Servisofts",
-  "- Fecha": "2023-01-24T02:09:30.000009"
+  "- Fecha": "2023-01-27T02:20:13.000744"
 }

@@ -93,9 +93,11 @@ public class CuotaAmortizacion {
 
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
 
-            intentarAmortizar(data.getString("key_cuota"));
+            JSONObject cuentas = intentarAmortizar(data.getString("key_cuota"));
 
-            obj.put("data", data);
+            
+            obj.put("cuentas", cuentas);
+           // obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
             obj.put("estado", "error");
@@ -104,23 +106,53 @@ public class CuotaAmortizacion {
         }
     } 
 
-    public static void intentarAmortizar(String key_cuota){
+    public static JSONObject intentarAmortizar(String key_cuota){
         try {
 
             JSONObject cuota = Cuota.getByKey(key_cuota);
             double amortizaciones = CuotaAmortizacion.getAmortizacioens(key_cuota);
 
+
+            JSONObject send = new JSONObject();
+
             if(cuota.getDouble("monto")<=amortizaciones){
                 System.out.println("amortizar");
+
+                JSONObject compra_venta_detalles = CompraVentaDetalle.getPorcentajes(cuota.getString("key_compra_venta"));
+                JSONObject compra_venta_detalle;
+                double monto_a_pagar;
+                String cuenta_contable;
+
+                
+                JSONObject _send;
+                for (int i = 0; i < JSONObject.getNames(compra_venta_detalles).length; i++) {
+                    compra_venta_detalle = compra_venta_detalles.getJSONObject(JSONObject.getNames(compra_venta_detalles)[i]);
+                    monto_a_pagar = cuota.getDouble("monto")*(compra_venta_detalle.getDouble("porcentaje")/100);
+                    
+                    if(compra_venta_detalle.getString("tipo_pago").equals("contado")){
+                        cuenta_contable = compra_venta_detalle.getString("key_cuenta_contable_contado");
+                    }else{
+                        cuenta_contable = compra_venta_detalle.getString("key_cuenta_contable_credito");
+                    }  
+                    _send = new JSONObject();
+                    _send.put("key_cuenta_contable", cuenta_contable);
+                    _send.put("monto", monto_a_pagar);
+                    _send.put("key_compra_venta_detalle", compra_venta_detalle.getString("key"));
+                    send.put(compra_venta_detalle.getString("key"), _send);
+                }
+                
+
                 cuota.put("estado", 2);
                 SPGConect.editObject("cuota", cuota);
+
             }else{
                 System.out.println("no amortizar");
             }
 
-
+            return send;
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
     }
 

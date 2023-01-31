@@ -58,6 +58,17 @@ public class CompraVentaDetalle {
         }
     }
 
+    public static JSONObject getPorcentajes(String key_compra_venta) {
+        try {
+            String consulta = "select get_pocentaje_compraventa_detalle('"+key_compra_venta+"') as json";
+            return SPGConect.ejecutarConsultaObject(consulta);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+
 
     public static int getCantidadCompraProductosDisponibles(String key_compra_venta_detalle) {
         try {

@@ -132,7 +132,7 @@ public class Cuota {
             }
             
             SPGConect.insertArray(COMPONENT, data);
-
+            
             JSONObject compra_venta = new JSONObject();
             compra_venta.put("key", obj.getString("key_compra_venta"));
             compra_venta.put("periodicidad_medida", obj.getString("periodicidad_medida"));
@@ -141,6 +141,14 @@ public class Cuota {
             compra_venta.put("tipo_pago", obj.getString("tipo_pago"));
             SPGConect.editObject("compra_venta", compra_venta);
 
+
+/* 
+            if(obj.getString("tipo_pago").equals("contado")){
+                compra_venta.getJSONObject("data").getString("key_cuenta_contable_contado");
+            }else{
+                compra_venta.getJSONObject("data").getString("key_cuenta_contable_credito");
+            }
+*/
             obj.put("data", data);
             obj.put("estado", "exito");
             obj.put("sendAll", true);

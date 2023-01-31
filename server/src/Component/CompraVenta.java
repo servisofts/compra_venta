@@ -207,7 +207,7 @@ public class CompraVenta {
     public static void pdf(JSONObject obj, SSSessionAbstract session) {
         try {
             
-            new PDF().generarCompraVenta(obj.getString("key_compra_venta"));
+            //new PDF().generarCompraVenta(obj.getString("key_compra_venta"));
             obj.put("data", obj.getString("key_compra_venta"));
             obj.put("estado", "exito");
         } catch (Exception e) {
