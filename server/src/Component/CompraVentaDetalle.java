@@ -119,9 +119,12 @@ public class CompraVentaDetalle {
             }
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
 
+            JSONObject producto = null;
             if(obj.has("key_producto")){
-                CompraVentaDetalleProducto.registro(data.getString("key"), obj.getString("key_usuario"), key_sucursal, obj.getString("key_producto"));
+                producto = CompraVentaDetalleProducto.registro(data.getString("key"), obj.getString("key_usuario"), key_sucursal, obj.getString("key_producto"));
             }
+
+            obj.put("productos", new JSONArray().put(producto));
 
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -143,7 +146,10 @@ public class CompraVentaDetalle {
 
     public static void comprasSinRecepcionar(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select compras_sin_recepcionar('" + obj.getString("key_sucursal") + "') as json";
+            String consulta = "select compras_sin_recepcionar_all('" + obj.getJSONObject("servicio").getString("key") + "') as json";
+            if(obj.has("key_sucursal") && !obj.isNull("key_sucursal") && obj.getString("key_sucursal").length()>0){
+                consulta = "select compras_sin_recepcionar('" + obj.getString("key_sucursal") + "') as json";
+            }
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -188,7 +194,10 @@ public class CompraVentaDetalle {
 
     public static void ventasSinEntregar(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select ventas_sin_entregar('" + obj.getString("key_sucursal") + "') as json";
+            String consulta = "select ventas_sin_entregar() as json";
+            if(obj.has("key_sucursal") && !obj.isNull("key_sucursal")){
+                consulta = "select ventas_sin_entregar('" + obj.getString("key_sucursal") + "') as json";
+            }
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");

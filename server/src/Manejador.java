@@ -21,7 +21,7 @@ public class Manejador {
                 CompraVentaDetalle.onMessage(obj, session);
                 break;
             case CompraVentaDetalleProducto.COMPONENT:
-                CompraVentaDetalleProducto.onMessage(obj, session); 
+                CompraVentaDetalleProducto.onMessage(obj, session);
                 break;
             case Cuota.COMPONENT:
                 Cuota.onMessage(obj, session);
@@ -37,6 +37,12 @@ public class Manejador {
                 break;
             case CuotaAmortizacion.COMPONENT:
                 CuotaAmortizacion.onMessage(obj, session);
+                break;
+            case Reporte.COMPONENT:
+                Reporte.onMessage(obj, session);
+                break;
+            case Multa.COMPONENT:
+                Multa.onMessage(obj, session);
                 break;
         }
     }

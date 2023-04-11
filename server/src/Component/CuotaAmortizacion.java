@@ -55,7 +55,7 @@ public class CuotaAmortizacion {
             String a = SPGConect.ejecutarConsultaString(consulta);
             return Double.parseDouble(a);
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return 0;
         }
     }
@@ -92,8 +92,11 @@ public class CuotaAmortizacion {
             data.put("key_usuario", obj.getString("key_usuario"));
 
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
-
-            JSONObject cuentas = intentarAmortizar(data.getString("key_cuota"));
+            
+            JSONArray cuentas = new JSONArray();
+            for (int i = 0; i < data.getJSONArray("key_cuotas").length(); i++) {
+                intentarAmortizar(data.getJSONArray("key_cuotas").getString(i), cuentas);
+            }
 
             
             obj.put("cuentas", cuentas);
@@ -106,18 +109,17 @@ public class CuotaAmortizacion {
         }
     } 
 
-    public static JSONObject intentarAmortizar(String key_cuota){
+    public static void intentarAmortizar(String key_cuota, JSONArray cuentas){
         try {
 
             JSONObject cuota = Cuota.getByKey(key_cuota);
             double amortizaciones = CuotaAmortizacion.getAmortizacioens(key_cuota);
 
 
-            JSONObject send = new JSONObject();
-
-            if(cuota.getDouble("monto")<=amortizaciones){
+            if(cuota.getDouble("monto")>=amortizaciones){
                 System.out.println("amortizar");
 
+                JSONObject compra_venta = CompraVenta.getByKey(cuota.getString("key_compra_venta"));
                 JSONObject compra_venta_detalles = CompraVentaDetalle.getPorcentajes(cuota.getString("key_compra_venta"));
                 JSONObject compra_venta_detalle;
                 double monto_a_pagar;
@@ -129,7 +131,7 @@ public class CuotaAmortizacion {
                     compra_venta_detalle = compra_venta_detalles.getJSONObject(JSONObject.getNames(compra_venta_detalles)[i]);
                     monto_a_pagar = cuota.getDouble("monto")*(compra_venta_detalle.getDouble("porcentaje")/100);
                     
-                    if(compra_venta_detalle.getString("tipo_pago").equals("contado")){
+                    if(compra_venta.getString("tipo_pago").equals("contado")){
                         cuenta_contable = compra_venta_detalle.getString("key_cuenta_contable_contado");
                     }else{
                         cuenta_contable = compra_venta_detalle.getString("key_cuenta_contable_credito");
@@ -138,7 +140,7 @@ public class CuotaAmortizacion {
                     _send.put("key_cuenta_contable", cuenta_contable);
                     _send.put("monto", monto_a_pagar);
                     _send.put("key_compra_venta_detalle", compra_venta_detalle.getString("key"));
-                    send.put(compra_venta_detalle.getString("key"), _send);
+                    cuentas.put(_send);
                 }
                 
 
@@ -148,11 +150,8 @@ public class CuotaAmortizacion {
             }else{
                 System.out.println("no amortizar");
             }
-
-            return send;
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
         }
     }
 

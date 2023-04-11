@@ -17,6 +17,24 @@ public class CompraVenta {
             case "getByKey":
                 getByKey(obj, session);
                 break;
+            case "getClientes":
+                getClientes(obj, session);
+                break;
+            case "getClientesDeudores":
+                getClientesDeudores(obj, session);
+                break;
+            case "getClientesMorosos":
+                getClientesMorosos(obj, session);
+                break;
+            case "getDeudaProveedores":
+                getDeudaProveedores(obj, session);
+                break;
+            case "getByKeyCliente":
+                getByKeyCliente(obj, session);
+                break;
+            case "getStates":
+                getStates(obj, session);
+                break;
             case "registro":
                 registro(obj, session);
                 break;
@@ -32,6 +50,68 @@ public class CompraVenta {
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
             String consulta = "select get_all_compra_venta('"+obj.getString("key_usuario")+"') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    public static void getStates(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_compras_ventas('"+obj.getString("key_sucursal")+"') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void getClientes(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_clientes() as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    public static void getClientesDeudores(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_clientes_deudores() as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    public static void getClientesMorosos(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_clientes_morosos() as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    public static void getDeudaProveedores(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_deuda_proveedores() as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -84,6 +164,18 @@ public class CompraVenta {
             e.printStackTrace();
         }
     }
+    public static void getByKeyCliente(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select ventas_cliente('" + obj.getString("key_cliente") + "') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
     public static JSONObject getByKey(String key) {
         try {
@@ -105,11 +197,8 @@ public class CompraVenta {
             data.put("key_usuario", obj.getString("key_usuario"));
             data.put("key_servicio", obj.getJSONObject("servicio").getString("key"));
 
-            boolean isVenta = false;
-
             if(obj.has("key_sucursal")){
                 data.put("key_sucursal", obj.getString("key_sucursal"));    
-                isVenta = true;
             }
 
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
@@ -138,6 +227,8 @@ public class CompraVenta {
             
             Notificar.send(tipo_registro_icon+" Registraste "+data.getString("descripcion"), data.getString("observacion"), data_, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
 
+            obj.put("sendAll", true);
+            
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
@@ -180,11 +271,13 @@ public class CompraVenta {
 
             obj.put("data", data);
             obj.put("estado", "exito");
+        
 
+            obj.put("sendAll", true);
+
+            /*
+            Para enviar solo a los participantes de la compraventa 
             if(data.getString("state").equals("comprado")){
-
-
-
                 obj.put("sendAll", true);
             }else{
                 JSONObject compraVentaParticipantes = CompraVentaParticipante.getAll(data.getString("key"));
@@ -195,6 +288,7 @@ public class CompraVenta {
 
                 obj.put("sendUsers", key_usuarios);
             }
+            */
 
 
         } catch (Exception e) {
@@ -207,7 +301,7 @@ public class CompraVenta {
     public static void pdf(JSONObject obj, SSSessionAbstract session) {
         try {
             
-            //new PDF().generarCompraVenta(obj.getString("key_compra_venta"));
+            new PDF().generarCompraVenta(obj.getString("key_compra_venta"));;
             obj.put("data", obj.getString("key_compra_venta"));
             obj.put("estado", "exito");
         } catch (Exception e) {

@@ -21,6 +21,9 @@ public class CompraVentaDetalleProducto {
             case "registro":
                 registro(obj, session);
                 break;
+            case "registroExcel":
+                registroExcel(obj, session);
+                break;
             case "editar":
                 editar(obj, session);
                 break;
@@ -70,7 +73,7 @@ public class CompraVentaDetalleProducto {
 
             if(CompraVentaDetalle.getCantidadCompraProductosDisponibles(obj.getJSONObject("data").getString("key_compra_venta_detalle"))<=0){
                 obj.put("estado", "error");
-                obj.put("error", "No existen productos pendientes de compra");
+                obj.put("error", "No existen productos pendientes de recepcionar");
                 return ;
             }
 
@@ -95,8 +98,41 @@ public class CompraVentaDetalleProducto {
             e.printStackTrace();
         }
     }
+    public static void registroExcel(JSONObject obj, SSSessionAbstract session) {
+        try {
+            JSONArray keys = obj.getJSONArray("keys");
+            if(CompraVentaDetalle.getCantidadCompraProductosDisponibles(obj.getString("key_compra_venta_detalle"))<keys.length()){
+                obj.put("estado", "error");
+                obj.put("error", "No existen productos pendientes de recepcionar");
+                return ;
+            }
 
-    public static void registro(String key_compra_venta_detalle, String key_usuario, String key_sucursal, String key_producto) {
+            JSONArray cvdp = new JSONArray();
+            JSONObject data;
+            for (int i = 0; i < keys.length(); i++) {
+                data = new JSONObject();
+                data.put("key", SUtil.uuid());
+                data.put("estado", 1);
+                data.put("fecha_on", SUtil.now());
+                data.put("key_usuario", obj.getString("key_usuario"));
+                data.put("key_compra_venta_detalle", obj.getString("key_compra_venta_detalle"));
+                data.put("key_producto", keys.getString(i));
+                cvdp.put(data);
+            }
+            
+
+            SPGConect.insertArray(COMPONENT, cvdp);
+            obj.put("data", cvdp);
+            obj.put("estado", "exito");
+            //obj.put("sendAll", true );
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static JSONObject registro(String key_compra_venta_detalle, String key_usuario, String key_sucursal, String key_producto) {
         try {
 
             JSONObject compraVentaDetalle = CompraVentaDetalle.getByKey(key_compra_venta_detalle);
@@ -105,7 +141,6 @@ public class CompraVentaDetalleProducto {
             JSONObject data = new JSONObject();
             data.put("key", SUtil.uuid());
             data.put("estado", 1);
-            data.put("state", "cotizacion");
             data.put("fecha_on", SUtil.now());
             data.put("key_usuario", key_usuario);
             data.put("key_sucursal", key_sucursal);
@@ -115,7 +150,7 @@ public class CompraVentaDetalleProducto {
 
             if(compraVenta.getString("tipo").equals("compra")){
                 if(CompraVentaDetalle.getCantidadCompraProductosDisponibles(key_compra_venta_detalle)<=0){
-                    return ;
+                    return null;
                 }
             }else{
                 data.put("key_producto", key_producto);
@@ -123,11 +158,12 @@ public class CompraVentaDetalleProducto {
 
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
 
-            
+            return data;
             
             
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
     }
     

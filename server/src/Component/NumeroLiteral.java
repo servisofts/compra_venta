@@ -25,6 +25,8 @@ public class NumeroLiteral {
 
     public String Convertir(String numero, boolean mayusculas) {
         String literal = "";
+        //String moneda = "Bolivianos";
+        String moneda = "";
         String parte_decimal;    
         //si el numero utiliza (.) en lugar de (,) -> se reemplaza
         numero = numero.replace(".", ",");
@@ -37,7 +39,7 @@ public class NumeroLiteral {
             //se divide el numero 0000000,00 -> entero y decimal
             String Num[] = numero.split(",");            
             //de da formato al numero decimal
-            parte_decimal = Num[1] + "/100 Bolivianos.";
+            parte_decimal = Num[1] + "/100 "+moneda+".";
             //se convierte el numero a literal
             if (Integer.parseInt(Num[0]) == 0) {//si el valor es cero
                 literal = "cero ";
