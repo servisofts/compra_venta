@@ -27,15 +27,16 @@ public class CompraVentaDetalleProducto {
             case "editar":
                 editar(obj, session);
                 break;
+            case "getCuotas":
+                getCuotas(obj, session);
+                break;
         }
     }
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
-
             String consulta = "select get_compra_venta_detalle_productos('" + obj.getString("key_compra_venta") + "') as json";
             JSONObject data =  SPGConect.ejecutarConsultaObject(consulta);
-
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
@@ -175,6 +176,20 @@ public class CompraVentaDetalleProducto {
                 data.put("fecha_off", SUtil.now()); 
             }
             SPGConect.editObject(COMPONENT, data);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void getCuotas(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_compra_venta('" + obj.getString("key_producto") + "', 'venta') as json";
+            JSONObject data =  SPGConect.ejecutarConsultaObject(consulta);
+            data.put("cuotas", Cuota.getAll(data.getString("key")));
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {

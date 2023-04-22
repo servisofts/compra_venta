@@ -2,7 +2,7 @@
   "Servicios": {
     "notification": {
       "host": "192.168.5.33:10033",
-      "status": "desconectado"
+      "status": "exito"
     }
   },
   "PostgreSQL": {
@@ -10,5 +10,5 @@
     "status": "exito"
   },
   "- SLog": "RealTime Log from server Servisofts",
-  "- Fecha": "2023-04-04T20:20:50.000351"
+  "- Fecha": "2023-04-22T00:19:57.000251"
 }

@@ -62,7 +62,8 @@ public class CompraVenta {
     
     public static void getStates(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_compras_ventas('"+obj.getString("key_sucursal")+"') as json";
+            //String consulta = "select get_compras_ventas('"+obj.getString("key_sucursal")+"') as json";
+            String consulta = "select get_compras_ventas('"+obj.getString("key_sucursal")+"', '"+obj.getString("fecha_inicio")+"', '"+obj.getString("fecha_fin")+"') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");

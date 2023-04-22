@@ -24,6 +24,7 @@ public class CompraVentaDetalle {
             case "editar":
                 editar(obj, session);
                 break;
+            
             case "cambiarPrecios":
                 cambiarPrecios(obj, session);
                 break;
@@ -103,6 +104,7 @@ public class CompraVentaDetalle {
             return null;
         }
     }
+    
 
     public static void registro(JSONObject obj, SSSessionAbstract session) {
         try {
@@ -207,6 +209,7 @@ public class CompraVentaDetalle {
             e.printStackTrace();
         }
     }
+    
 
     public static void editar(JSONObject obj, SSSessionAbstract session) {
         try {
