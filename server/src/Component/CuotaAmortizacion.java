@@ -86,16 +86,14 @@ public class CuotaAmortizacion {
     public static void registro(JSONObject obj, SSSessionAbstract session) {
         try {
             JSONObject data = obj.getJSONObject("data");
-            data.put("key", SUtil.uuid());
+            
             data.put("estado", 1);
             data.put("fecha_on", SUtil.now());
             data.put("key_usuario", obj.getString("key_usuario"));
-
-            SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
             
             JSONArray cuentas = new JSONArray();
             for (int i = 0; i < data.getJSONArray("key_cuotas").length(); i++) {
-                intentarAmortizar(data.getJSONArray("key_cuotas").getString(i), cuentas);
+                intentarAmortizar(data.getJSONArray("key_cuotas").getString(i), cuentas, data);
             }
 
             
@@ -109,12 +107,14 @@ public class CuotaAmortizacion {
         }
     } 
 
-    public static void intentarAmortizar(String key_cuota, JSONArray cuentas){
+    public static void intentarAmortizar(String key_cuota, JSONArray cuentas, JSONObject data){
         try {
 
+            data.put("key", SUtil.uuid());
             JSONObject cuota = Cuota.getByKey(key_cuota);
             double amortizaciones = CuotaAmortizacion.getAmortizacioens(key_cuota);
 
+            data.put("key_cuota", cuota.getString("key"));
 
             if(cuota.getDouble("monto")>=amortizaciones){
                 System.out.println("amortizar");
@@ -131,6 +131,8 @@ public class CuotaAmortizacion {
                     compra_venta_detalle = compra_venta_detalles.getJSONObject(JSONObject.getNames(compra_venta_detalles)[i]);
                     monto_a_pagar = cuota.getDouble("monto")*(compra_venta_detalle.getDouble("porcentaje")/100);
                     
+                    data.put("monto", monto_a_pagar);
+
                     if(compra_venta.getString("tipo_pago").equals("contado")){
                         cuenta_contable = compra_venta_detalle.getString("key_cuenta_contable_contado");
                     }else{
@@ -141,10 +143,13 @@ public class CuotaAmortizacion {
                     _send.put("monto", monto_a_pagar);
                     _send.put("key_compra_venta_detalle", compra_venta_detalle.getString("key"));
                     cuentas.put(_send);
+
                 }
                 
 
                 cuota.put("estado", 2);
+                
+                SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
                 SPGConect.editObject("cuota", cuota);
 
             }else{
