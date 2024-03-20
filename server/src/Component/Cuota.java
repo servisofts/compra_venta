@@ -36,8 +36,8 @@ public class Cuota {
         try {
             String consulta = "";
             if(obj.has("key_compra_venta")) consulta = "select get_all('" + COMPONENT + "', 'key_compra_venta', '"+obj.getString("key_compra_venta")+"') as json";
-            if(obj.has("key_cliente")) consulta = "select get_cuotas('"+obj.getString("key_cliente")+"') as json";
-            if(obj.has("key_proveedor")) consulta = "select get_cuotas_proveedor('"+obj.getString("key_proveedor")+"') as json";
+            if(obj.has("key_cliente")) consulta = "select get_cuotas('"+obj.getString("key_cliente")+"','"+obj.getString("key_empresa")+"') as json";
+            if(obj.has("key_proveedor")) consulta = "select get_cuotas_proveedor('"+obj.getString("key_proveedor")+"', '"+obj.getString("key_empresa")+"') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -51,6 +51,9 @@ public class Cuota {
     public static void getPendientes(JSONObject obj, SSSessionAbstract session) {
             try {
                 String consulta = "select get_cobranzas() as json";
+                if(obj.has("key_empresa")){
+                    consulta = "select get_cobranzas('"+obj.get("key_empresa")+"') as json";
+                }
                 JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
                 obj.put("data", data);
                 obj.put("estado", "exito");

@@ -3,6 +3,10 @@
     "notification": {
       "host": "192.168.5.33:10033",
       "status": "exito"
+    },
+    "contabilidad": {
+      "host": "192.168.2.1:10011",
+      "status": "exito"
     }
   },
   "PostgreSQL": {
@@ -10,5 +14,5 @@
     "status": "exito"
   },
   "- SLog": "RealTime Log from server Servisofts",
-  "- Fecha": "2023-04-28T03:21:44.000109"
+  "- Fecha": "2024-03-15T09:57:59.000121"
 }

@@ -91,15 +91,21 @@ public class CuotaAmortizacion {
             data.put("fecha_on", SUtil.now());
             data.put("key_usuario", obj.getString("key_usuario"));
             
-            JSONArray cuentas = new JSONArray();
+            
             for (int i = 0; i < data.getJSONArray("key_cuotas").length(); i++) {
-                intentarAmortizar(data.getJSONArray("key_cuotas").getString(i), cuentas, data);
+                intentarAmortizar(data.getJSONArray("key_cuotas").getString(i), data);
+            }
+
+            obj.put("estado", "exito");
+
+            if(data.getString("estado").equals("error")){
+                obj.put("estado", "error");
+                obj.put("error", data.getString("error"));
             }
 
             
-            obj.put("cuentas", cuentas);
-           // obj.put("data", data);
-            obj.put("estado", "exito");
+            
+           
         } catch (Exception e) {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
@@ -107,54 +113,49 @@ public class CuotaAmortizacion {
         }
     } 
 
-    public static void intentarAmortizar(String key_cuota, JSONArray cuentas, JSONObject data){
+    public static void intentarAmortizar(String key_cuota, JSONObject data){
         try {
 
-            data.put("key", SUtil.uuid());
+            // trae plata
+            if(data.getDouble("monto")<=0){
+                data.put("estado", "error");
+                data.put("error", "Monto insuficiente");
+                return;
+            }
+
             JSONObject cuota = Cuota.getByKey(key_cuota);
             double amortizaciones = CuotaAmortizacion.getAmortizacioens(key_cuota);
+            double monto_deuda = cuota.getDouble("monto")-amortizaciones;
 
+            // ya no se debe
+            if(monto_deuda<=0){
+                data.put("estado", "error");
+                data.put("error", "No tiene deuda");
+                cuota.put("estado", 2);
+                SPGConect.editObject("cuota", cuota);
+                return;
+            }
+
+
+            // se debe plata monto_deuda
+            
+            data.put("key", SUtil.uuid());
             data.put("key_cuota", cuota.getString("key"));
 
-            if(cuota.getDouble("monto")>=amortizaciones){
-                System.out.println("amortizar");
 
-                JSONObject compra_venta = CompraVenta.getByKey(cuota.getString("key_compra_venta"));
-                JSONObject compra_venta_detalles = CompraVentaDetalle.getPorcentajes(cuota.getString("key_compra_venta"));
-                JSONObject compra_venta_detalle;
-                double monto_a_pagar;
-                String cuenta_contable;
+            SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
+            System.out.println("amortizar");
 
-                
-                JSONObject _send;
-                for (int i = 0; i < JSONObject.getNames(compra_venta_detalles).length; i++) {
-                    compra_venta_detalle = compra_venta_detalles.getJSONObject(JSONObject.getNames(compra_venta_detalles)[i]);
-                    monto_a_pagar = cuota.getDouble("monto")*(compra_venta_detalle.getDouble("porcentaje")/100);
-                    
-                    data.put("monto", monto_a_pagar);
-
-                    if(compra_venta.getString("tipo_pago").equals("contado")){
-                        cuenta_contable = compra_venta_detalle.getString("key_cuenta_contable_contado");
-                    }else{
-                        cuenta_contable = compra_venta_detalle.getString("key_cuenta_contable_credito");
-                    }  
-                    _send = new JSONObject();
-                    _send.put("key_cuenta_contable", cuenta_contable);
-                    _send.put("monto", monto_a_pagar);
-                    _send.put("key_compra_venta_detalle", compra_venta_detalle.getString("key"));
-                    cuentas.put(_send);
-
-                }
-                
-
-                cuota.put("estado", 2);
-                
-                SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
-                SPGConect.editObject("cuota", cuota);
-
-            }else{
-                System.out.println("no amortizar");
+            if(data.getDouble("monto")>=monto_deuda){
+                cuota.put("estado", 2);               
+                SPGConect.editObject("cuota", cuota);   
             }
+
+            
+
+            data.put("estado", "exito");
+        
+
         } catch (Exception e) {
             e.printStackTrace();
         }
