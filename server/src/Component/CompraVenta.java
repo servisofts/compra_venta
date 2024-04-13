@@ -267,7 +267,7 @@ public class CompraVenta {
             
             boolean vigentes = true;
             if (data.getString("state").equals("vendido")) {
-                vigentes = CompraVenta.verificarProductosVigentes(data.getString("key"));
+             //   vigentes = CompraVenta.verificarProductosVigentes(data.getString("key"));
             }
 
             if (!vigentes) {
@@ -323,6 +323,218 @@ public class CompraVenta {
         }
     }
 
+    public static JSONObject generarComprobanteCompra(JSONObject compraVenta){
+        JSONObject compraVentaDetalle = CompraVentaDetalle.getAll(compraVenta.getString("key"));
+        JSONObject send = new JSONObject();
+        send.put("component", "asiento_contable");
+        send.put("type", "set");
+        send.put("key_usuario", "set");
+        send.put("key_empresa", compraVenta.getString("key_empresa"));
+
+        JSONObject comprobante = new JSONObject();
+        comprobante.put("tipo", "traspaso");
+        comprobante.put("fecha", compraVenta.getString("fecha_on").substring(0, 10));
+        comprobante.put("descripcion", compraVenta.getString("tipo")+": "+compraVenta.getString("descripcion"));
+        comprobante.put("observacion", compraVenta.getString("observacion"));
+
+        JSONArray detalle = new JSONArray();
+        double suma = 0;
+
+        JSONObject contabilidadEnviroment = Contabilidad.getEnviroment(compraVenta.getString("key_empresa"), "IVA");
+        double iva = Double.parseDouble(contabilidadEnviroment.getString("observacion"));
+
+        for (int i = 0; i < JSONObject.getNames(compraVentaDetalle).length; i++) {
+            JSONObject cvd = compraVentaDetalle.getJSONObject(JSONObject.getNames(compraVentaDetalle)[i]);
+            JSONObject det = new JSONObject();
+
+            // Key_cuenta_detalle_tipo_producto
+            det.put("key_cuenta_contable", cvd.getJSONObject("data").getString("key_cuenta_contable"));
+            det.put("glosa", cvd.getString("descripcion"));
+            double total = (cvd.getDouble("precio_unitario") * cvd.getDouble("cantidad"));
+            if (cvd.has("descuento") && !cvd.isNull("descuento")) {
+                total -= cvd.getDouble("descuento");
+            }
+
+
+            double monto_iva = 0;
+            if(cvd.has("precio_facturado") && cvd.get("precio_facturado") != null && !(cvd.get("precio_facturado")+"").equals("null")){
+                monto_iva = Double.parseDouble(cvd.get("precio_facturado")+"")*iva;
+            }
+            
+
+            det.put("debe", total-monto_iva);
+            suma += total;
+            detalle.put(det);
+
+            if(monto_iva>0){
+                JSONObject ajuste = Contabilidad.getAjusteEmpresa(compraVenta.getString("key_empresa"), "credito_iva");
+            
+                det = new JSONObject();
+                det.put("codigo", ajuste.getString("codigo"));
+                det.put("glosa", cvd.getString("descripcion"));
+                det.put("debe", monto_iva);
+                detalle.put(det);
+            }
+            
+
+        }
+
+
+        JSONObject ajusteEmpresa = Contabilidad.getAjusteEmpresa(compraVenta.getString("key_empresa"), "cuentas_por_pagar");
+
+        
+
+        JSONObject det = new JSONObject();
+        det.put("codigo", ajusteEmpresa.getString("codigo"));
+        det.put("glosa", compraVenta.getString("descripcion"));
+        det.put("haber", suma);
+        detalle.put(det);
+
+        comprobante.put("detalle", detalle);
+        send.put("data", comprobante);
+
+        send = SocketCliente.sendSinc("contabilidad", send);
+        send.put("estado", "exito");
+        if(send.getString("estado").equals("error")){
+            send.put("estado", "error");
+            send.put("error", send.getString("error"));
+        }
+        return send;
+    }
+    
+    public static JSONObject generarComprobanteVenta(JSONObject compraVenta){
+        JSONObject compraVentaDetalle = CompraVentaDetalle.getAll(compraVenta.getString("key"));
+        JSONObject send = new JSONObject();
+        send.put("component", "asiento_contable");
+        send.put("type", "set");
+        send.put("key_usuario", "set");
+        send.put("key_empresa", compraVenta.getString("key_empresa"));
+
+        JSONObject comprobante = new JSONObject();
+        comprobante.put("tipo", "traspaso");
+        comprobante.put("fecha", compraVenta.getString("fecha_on").substring(0, 10));
+        comprobante.put("descripcion", compraVenta.getString("tipo")+": "+compraVenta.getString("descripcion"));
+        comprobante.put("observacion", compraVenta.getString("observacion"));
+
+        JSONObject contabilidadEnviroment = Contabilidad.getEnviroment(compraVenta.getString("key_empresa"), "IVA");
+        double iva = Double.parseDouble(contabilidadEnviroment.getString("observacion"));
+
+        JSONObject contabilidadEnviromentIt = Contabilidad.getEnviroment(compraVenta.getString("key_empresa"), "IT");
+        double it = Double.parseDouble(contabilidadEnviromentIt.getString("observacion"));
+
+        boolean isFacturado = false;
+
+        JSONArray detalle = new JSONArray();
+        double suma = 0;
+        double sumaFacturado = 0;
+        for (int i = 0; i < JSONObject.getNames(compraVentaDetalle).length; i++) {
+            JSONObject cvd = compraVentaDetalle.getJSONObject(JSONObject.getNames(compraVentaDetalle)[i]);
+
+            JSONObject ajusteEmpresa = Contabilidad.getAjusteEmpresa(compraVenta.getString("key_empresa"), "cuentas_por_cobrar");
+
+            JSONObject det = new JSONObject();
+            det.put("codigo", ajusteEmpresa.getString("codigo"));
+            det.put("glosa", compraVenta.getString("descripcion"));
+            double total = (cvd.getDouble("precio_unitario") * cvd.getDouble("cantidad"));
+            if (cvd.has("descuento") && !cvd.isNull("descuento")) {
+                total -= cvd.getDouble("descuento");
+            } 
+            det.put("debe", total);
+            detalle.put(det);
+
+
+
+            det = new JSONObject();
+            det.put("key_cuenta_contable", cvd.getJSONObject("data").getString("key_cuenta_contable_ganancia"));
+            det.put("glosa", cvd.getString("descripcion"));
+
+
+            double monto_iva = 0;
+            double precio_facturado = 0;
+
+            if(cvd.has("precio_facturado") && !cvd.isNull("precio_facturado")){
+                try{
+                    precio_facturado = cvd.getDouble("precio_facturado");
+                    if(precio_facturado>0) isFacturado = true;
+                }catch(Exception e){}
+                
+            }
+            
+            monto_iva = precio_facturado*iva;
+            
+
+            det.put("haber", total-monto_iva);
+            detalle.put(det);
+
+            if(monto_iva>0){
+                JSONObject ajuste = Contabilidad.getAjusteEmpresa(compraVenta.getString("key_empresa"), "debito_iva");
+            
+                det = new JSONObject();
+                det.put("codigo", ajuste.getString("codigo"));
+                det.put("glosa", cvd.getString("descripcion"));
+                det.put("haber", monto_iva);
+                detalle.put(det);
+            }
+            
+
+            double totalCompra = 0;
+
+            if(cvd.getJSONObject("data").has("precio_compra")){
+                totalCompra = cvd.getJSONObject("data").getDouble("precio_compra")*cvd.getDouble("cantidad");
+
+                if(totalCompra>0){
+                    JSONObject det1 = new JSONObject();
+
+                    det1 = new JSONObject();
+                    // Sacar cuenta 5
+                    det1.put("key_cuenta_contable", cvd.getJSONObject("data").getString("key_cuenta_contable_costo"));
+                    det1.put("glosa", cvd.getString("descripcion"));
+                    det1.put("debe", totalCompra);
+                    detalle.put(det1);
+                    
+                    // Sacar cuenta 1
+                    det1 = new JSONObject();
+                    det1.put("key_cuenta_contable", cvd.getJSONObject("data").getString("key_cuenta_contable"));
+                    det1.put("glosa", cvd.getString("descripcion"));
+                    det1.put("haber", totalCompra);
+                    detalle.put(det1);
+
+                    
+                }
+            }
+            suma += total;
+            sumaFacturado+=precio_facturado;
+        }
+
+        
+        if(isFacturado){        
+        //Credito IT
+
+            JSONObject ajusteEmpresa = Contabilidad.getAjusteEmpresa(compraVenta.getString("key_empresa"), "credito_it");
+            JSONObject det = new JSONObject();
+            det.put("codigo", ajusteEmpresa.getString("codigo"));
+            det.put("glosa", "Impuesto a la transacción");
+            det.put("debe", sumaFacturado*it);
+            detalle.put(det);
+
+            //Debito IT
+            ajusteEmpresa = Contabilidad.getAjusteEmpresa(compraVenta.getString("key_empresa"), "debito_it");
+            det = new JSONObject();
+            det.put("codigo", ajusteEmpresa.getString("codigo"));
+            det.put("glosa", "Impuesto a la transacción");
+            det.put("haber", sumaFacturado*it);
+            detalle.put(det);
+
+        }
+
+        comprobante.put("detalle", detalle);
+        send.put("data", comprobante);
+
+        send = SocketCliente.sendSinc("contabilidad", send);
+        return send;
+    }
+
+
     public static void generarAsientoContable(JSONObject obj, SSSessionAbstract session) {
         try {
 
@@ -332,96 +544,14 @@ public class CompraVenta {
 
             JSONObject compraVenta = CompraVenta.getByKey(keyCompraVenta);
 
-            
-
-            String key_empresa = compraVenta.getString("key_empresa");
-            
-            JSONObject compraVentaDetalle = CompraVentaDetalle.getAll(compraVenta.getString("key"));
-            JSONObject send = new JSONObject();
-            send.put("component", "asiento_contable");
-            send.put("type", "set");
-            send.put("key_usuario", "set");
-            send.put("key_empresa", compraVenta.getString("key_empresa"));
-
-            JSONObject comprobante = new JSONObject();
-            comprobante.put("tipo", "traspaso");
-
-            comprobante.put("fecha", compraVenta.getString("fecha_on").substring(0, 10));
-
-            comprobante.put("descripcion", compraVenta.getString("tipo")+": "+compraVenta.getString("descripcion"));
-            comprobante.put("observacion", compraVenta.getString("observacion"));
-
-            JSONArray detalle = new JSONArray();
-            double suma = 0;
-            for (int i = 0; i < JSONObject.getNames(compraVentaDetalle).length; i++) {
-                JSONObject cvd = compraVentaDetalle.getJSONObject(JSONObject.getNames(compraVentaDetalle)[i]);
-                JSONObject det = new JSONObject();
-                det.put("key_cuenta_contable", cvd.getJSONObject("data").getString("key_cuenta_contable"));
-                det.put("glosa", cvd.getString("descripcion"));
-
-                double total = (cvd.getDouble("precio_unitario") * cvd.getDouble("cantidad"));
-                if (cvd.has("descuento") && !cvd.isNull("descuento")) {
-                    total -= cvd.getDouble("descuento");
-                } 
-                
-
-                double totalCompra = total;
-
-                if(cvd.getJSONObject("data").has("precio_compra")){
-                    totalCompra = cvd.getJSONObject("data").getDouble("precio_compra")*cvd.getDouble("cantidad");
-
-                    JSONObject det1 = new JSONObject();
-                    // Sacar cuenta 4
-                    det1.put("codigo", "4.1.0.001.04");
-                    det1.put("glosa", cvd.getString("descripcion"));
-                    det1.put("haber", total-totalCompra);
-                    detalle.put(det1);
-
-                }
-
-                
-                
-                if(compraVenta.getString("tipo").equals("compra")){
-                    det.put("debe", total);
-                }else{
-                    det.put("haber", totalCompra);
-                }
-                
-                suma += total;
-                detalle.put(det);
-            }
-
-            JSONObject ajusteEmpresa;
-            
-            if(compraVenta.getString("tipo").equals("compra")){
-                ajusteEmpresa = Contabilidad.getAjusteEmpresa(key_empresa, "cuentas_por_pagar");
+            if(compraVenta.getString("tipo").equals("venta")){
+                // venta
+                compraVenta = generarComprobanteVenta(compraVenta);
             }else{
-                ajusteEmpresa = Contabilidad.getAjusteEmpresa(key_empresa, "cuentas_por_cobrar");
+                // compra
+                compraVenta = generarComprobanteCompra(compraVenta);
             }
-            
-
-            JSONObject det = new JSONObject();
-            det.put("codigo", ajusteEmpresa.getString("codigo"));
-            det.put("glosa", compraVenta.getString("descripcion"));
-            if(compraVenta.getString("tipo").equals("compra")){
-                det.put("haber", suma);
-            }else{
-                det.put("debe", suma);
-            }
-            detalle.put(det);
-
-            comprobante.put("detalle", detalle);
-            send.put("data", comprobante);
-
-            send = SocketCliente.sendSinc("contabilidad", send);
-            if(send.has("estado") && !send.isNull("estado") && send.getString("estado").equals("exito")){
-                obj.put("estado", "exito");
-                obj.put("data", send.getJSONObject("data"));
-            }else{
-                obj.put("estado", "error");
-                obj.put("error", send.getString("error"));
-            }
-            
+            obj = compraVenta;
         } catch (Exception e) {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());

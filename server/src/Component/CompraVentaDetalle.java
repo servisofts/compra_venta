@@ -200,6 +200,9 @@ public class CompraVentaDetalle {
             if(obj.has("key_sucursal") && !obj.isNull("key_sucursal")){
                 consulta = "select ventas_sin_entregar('" + obj.getString("key_sucursal") + "') as json";
             }
+            if(obj.has("key_empresa") && !obj.isNull("key_empresa")){
+                consulta = "select ventas_sin_entregar_empresa('" + obj.getString("key_empresa") + "') as json";
+            }
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");

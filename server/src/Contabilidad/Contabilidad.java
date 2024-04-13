@@ -14,4 +14,14 @@ public class Contabilidad {
         JSONObject resp = SocketCliente.sendSinc("contabilidad", send);
         return resp.getJSONObject("data");
     }
+
+    public static JSONObject getEnviroment(String key_empresa, String enviroment) {
+        JSONObject send = new JSONObject();
+        send.put("component", "enviroment");
+        send.put("type", "getEnviroment");
+        send.put("key_empresa", key_empresa);
+        send.put("enviroment", enviroment);
+        JSONObject resp = SocketCliente.sendSinc("contabilidad", send);
+        return resp.getJSONObject("data");
+    }
 }
