@@ -25,7 +25,7 @@ import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
+ 
 import Servisofts.SConfig;
 
 public class PDF {
@@ -43,8 +43,10 @@ public class PDF {
 
     private NumeroLiteral numero_literal;
     private String pattern = "###,###,###.##";
-    private String rutaFontBold = "./font/Helvetica/Helvetica-Bold.ttf";
-    private String rutaFont = "./font/Helvetica/Helvetica.ttf";
+     private String rutaFontBold = "font/heveltica/bold.ttf";
+     //private String rutaFontBold = "./font/Helvetica/Helvetica-Bold.ttf";
+    private String rutaFont = "font/heveltica/regular.ttf";
+    //private String rutaFont = "./font/Helvetica/Helvetica.ttf";
     //private String rutaFontBold = "./font/NotoEmoji/static/NotoEmoji-Bold.ttf";
     //private String rutaFont = "./font/NotoEmoji/static/NotoEmoji-Regular.ttf";
     private DecimalFormat myFormatter = new DecimalFormat(pattern,DecimalFormatSymbols.getInstance(Locale.US));
@@ -52,9 +54,9 @@ public class PDF {
   
     public PDF(){
         try{
-            //document = new PDDocument();
-            //page = new PDPage(PDRectangle.LETTER);
-            //contentStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true);
+            document = new PDDocument();
+            page = new PDPage(PDRectangle.LETTER);
+            contentStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true);
             //generarFacturaRollo(new JSONObject(), "nombre.pdf", "#ff00ff");
         }catch(Exception e){
             e.printStackTrace();

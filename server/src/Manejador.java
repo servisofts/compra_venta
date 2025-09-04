@@ -6,7 +6,8 @@ import Server.SSSAbstract.SSSessionAbstract;
 public class Manejador {
     public static void onMessage(JSONObject obj, SSSessionAbstract session) {
         if (session != null) {
-            SConsole.log(session.getIdSession(), "\t|\t", obj.getString("component"), obj.getString("type"));
+            SConsole.log(session.getIdSession(), "\t|\t", obj.getString("component"),
+                    obj.getString("type"));
         } else {
             SConsole.log("http-server", "-->", obj.getString("component"), obj.getString("type"));
         }

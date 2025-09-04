@@ -30,6 +30,9 @@ public class CompraVentaDetalleProducto {
             case "getCuotas":
                 getCuotas(obj, session);
                 break;
+            case "entregar":
+                entregar(obj, session);
+                break;
         }
     }
 
@@ -71,14 +74,23 @@ public class CompraVentaDetalleProducto {
 
     public static void registro(JSONObject obj, SSSessionAbstract session) {
         try {
+            JSONObject data = obj.getJSONObject("data");
 
-            if(CompraVentaDetalle.getCantidadCompraProductosDisponibles(obj.getJSONObject("data").getString("key_compra_venta_detalle"))<=0){
+            double cantidad = Double.parseDouble(data.getString("cantidad") + "");
+            if(cantidad <= 0) {
                 obj.put("estado", "error");
-                obj.put("error", "No existen productos pendientes de recepcionar");
+                obj.put("error", "La cantidad debe ser mayor o igual a 1");
                 return ;
             }
 
-            JSONObject data = obj.getJSONObject("data");
+            double cantidadDisponible = CompraVentaDetalle.getCantidadCompraProductosDisponibles(data.getString("key_compra_venta_detalle"));
+
+            if(cantidadDisponible < cantidad){
+                obj.put("estado", "error");
+                obj.put("error", "No existen productos pendientes de recepcionar, Hay " + cantidadDisponible + " disponible y se esta intentando registrar " + cantidad);
+                return ;
+            }
+            
             data.put("key", SUtil.uuid());
             data.put("estado", 1);
             data.put("state", "cotizacion");
@@ -191,6 +203,18 @@ public class CompraVentaDetalleProducto {
             JSONObject data =  SPGConect.ejecutarConsultaObject(consulta);
             data.put("cuotas", Cuota.getAll(data.getString("key")));
             obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void entregar(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "UPDATE " + COMPONENT + " set fecha_off = now() " + " WHERE key = '" + obj.getString("key_compra_venta_detalle_producto") + "'";
+            SPGConect.ejecutarUpdate(consulta);
             obj.put("estado", "exito");
         } catch (Exception e) {
             obj.put("estado", "error");

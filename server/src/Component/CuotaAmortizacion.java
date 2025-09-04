@@ -141,6 +141,7 @@ public class CuotaAmortizacion {
             
             data.put("key", SUtil.uuid());
             data.put("key_cuota", cuota.getString("key"));
+            data.put("estado", 1);
 
 
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
