@@ -147,7 +147,7 @@ public class CuotaAmortizacion {
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
             System.out.println("amortizar");
 
-            if(data.getDouble("monto")>=monto_deuda){
+            if(data.getDouble("monto")>=monto_deuda){   
                 cuota.put("estado", 2);               
                 SPGConect.editObject("cuota", cuota);   
             }

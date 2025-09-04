@@ -42,6 +42,15 @@ public class ContaHook {
         return resp.getJSONObject("data");
     }
 
+    public static JSONObject puntoVentaTipoPago(String key_punto_venta_tipo_pago) {
+        JSONObject send = new JSONObject();
+        send.put("component", "punto_venta_tipo_pago");
+        send.put("type", "getByKey");
+        send.put("key", key_punto_venta_tipo_pago);
+        JSONObject resp = SocketCliente.sendSinc("empresa", send);
+        return resp.getJSONObject("data");
+    }
+
     public static JSONObject puntoVentaTipoPago(String key_punto_venta, String key_tipo_pago) {
         JSONObject send = new JSONObject();
         send.put("component", "punto_venta_tipo_pago");

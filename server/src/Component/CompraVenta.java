@@ -803,10 +803,7 @@ public class CompraVenta {
             String keyEmpresa = caja.getString("key_empresa");
             String keyMoneda=obj.getJSONObject("data").getString("key_moneda");
             JSONObject moneda = ContaHook.getMoneda(keyEmpresa, keyMoneda);
-            if(moneda.isNull("key")){
-                throw new Exception("La moneda seleccionada no es válida");
-            }
-            //double tipo_cambio = moneda.getDouble("tipo_cambio"); 
+            double tipo_cambio = moneda.getDouble("tipo_cambio"); 
 
             JSONArray tiposPago = new JSONArray();
             double totalPago = 0;
@@ -814,16 +811,16 @@ public class CompraVenta {
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
                 String key = JSONObject.getNames(data.getJSONObject("tipos_pago"))[i];
                 double value = data.getJSONObject("tipos_pago").getDouble(key);
-                JSONObject tipoPago = getTipoPago(key);
+                 // Si el tipo de pago es mayor a 0
+                totalPago += value;
+                JSONObject tipoPago = ContaHook.puntoVentaTipoPago(key);
+                // Verificar si la moneda del tipo de pago es diferente a la moneda de la compra_venta
+                tipoPago.put("key", key);
                 tipoPago.put("monto", value);
-                totalPago+=value;
                 tiposPago.put(tipoPago);
             }
-            
-            
 
             String key_empresa = sucursal.getString("key_empresa");
-
             JSONArray detalle = data.getJSONArray("detalle");
 
             if (detalle.length() == 0) {
@@ -834,6 +831,8 @@ public class CompraVenta {
             data.put("key_sucursal",  sucursal.getString("key"));
             data.put("tipo", "compra");
             data.put("state", "comprado");
+            data.put("key_moneda", keyMoneda);
+            data.put("tipo_cambio", tipo_cambio);
             data.put("tipo_pago", "contado");
             data.put("key", SUtil.uuid());
             data.put("fecha_on", SUtil.now());
@@ -853,6 +852,7 @@ public class CompraVenta {
                 if (!item.has("precio_unitario") || item.isNull("precio_unitario")) {
                     throw new Exception("El campo precio_unitario es requerido en el detalle");
                 }
+                
                 total_compra += item.getDouble("cantidad") * item.getDouble("precio_unitario") - item.optDouble("descuento",0);
                 item.put("key", SUtil.uuid());
                 item.put("estado", 1);
@@ -900,7 +900,7 @@ public class CompraVenta {
                     asiento.setDetalle(new AsientoContableDetalle(caja.getString("key_cuenta_contable"), "Compra Rapida")
                         .setHaber(tipoPago.getDouble("monto")));
                 }else{
-                    JSONObject puntoVentaTipoPago = puntoVentaTipoPago(caja.getString("key_punto_venta"), tipoPago.getString("key"));
+                    JSONObject puntoVentaTipoPago = ContaHook.puntoVentaTipoPago(tipoPago.getString("key"));
                     asiento.setDetalle(new AsientoContableDetalle(puntoVentaTipoPago.getString("key_cuenta_contable"), "Compra Rapida")
                         .setHaber(tipoPago.getDouble("monto")));
                 }
@@ -949,15 +949,23 @@ public class CompraVenta {
             info.put("key_compra_venta", data.optString("key"));
 
             double amortizar=0;
+
+            JSONObject tipoPagoOriginal = null;
             for (int i = 0; i < tiposPago.length(); i++) {
                 JSONObject tipoPago =  tiposPago.getJSONObject(i);
-                if(!tipoPago.optBoolean("is_credito",false)){
+                moneda= ContaHook.getMoneda(keyEmpresa, tipoPago.getString("key_moneda"));
+
+                tipoPagoOriginal = ContaHook.getTipoPago(tipoPago.getString("key_tipo_pago"));
+
+                if(!tipoPagoOriginal.optBoolean("is_credito",false)){
+                    
                     amortizar+=tipoPago.getDouble("monto");
                 }
-                
-                JSONObject puntoVentaTipoPago = puntoVentaTipoPago(caja.getString("key_punto_venta"), tipoPago.getString("key"));
 
-                setDetalleCaja(caja.getString("key"), puntoVentaTipoPago.getString("key_tipo_pago"), tipoPago.getDouble("monto")*-1, "Compra Rapida", "compra_rapida",asientoContable.getString("key"),asientoContable.getString("codigo"), data.getString("key_usuario"), info);
+                double dmonto = tipoPago.getDouble("monto")/moneda.optDouble("tipo_cambio",1);
+                dmonto = Math.round(dmonto * 100.0) / 100.0; // Redondear a dos decimales
+                
+                setDetalleCaja(caja.getString("key"), tipoPago.getString("key"), dmonto*-1, "Compra Rapida", "compra_rapida",asientoContable.getString("key"),asientoContable.getString("codigo"), data.getString("key_usuario"), info, moneda.getString("key"), moneda.optDouble("tipo_cambio",1), tipoPago.getString("key_tipo_pago"));
                 
             }
             conectInstance.commit();
@@ -989,6 +997,13 @@ public class CompraVenta {
             JSONObject caja = getCaja(data.getString("key_caja"));
             JSONObject punto_venta = getPuntoVenta(caja.getString("key_punto_venta"));
             JSONObject sucursal = getSucursal(punto_venta.getString("key_sucursal"));
+            
+            String keyMoneda = data.getString("key_moneda");
+
+            JSONObject moneda = ContaHook.getMoneda(sucursal.getString("key_empresa"), keyMoneda);
+            double tipo_cambio = moneda.getDouble("tipo_cambio");
+
+            
          
 
             JSONArray tiposPago = new JSONArray();
@@ -997,10 +1012,11 @@ public class CompraVenta {
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
                 String key = JSONObject.getNames(data.getJSONObject("tipos_pago"))[i];
                 double value = data.getJSONObject("tipos_pago").getDouble(key);
-                JSONObject tipoPago = getTipoPago(key);
+                JSONObject tipoPago = ContaHook.puntoVentaTipoPago(key);
                 tipoPago.put("monto", value);
                 totalPago+=value;
                 tiposPago.put(tipoPago);
+                
             }
 
 
@@ -1010,6 +1026,8 @@ public class CompraVenta {
             venta.put("state", "vendido");
             venta.put("tipo_pago", "contado");
             venta.put("key", SUtil.uuid());
+            venta.put("key_moneda", keyMoneda);
+            venta.put("tipo_cambio", tipo_cambio);
             venta.put("fecha_on", SUtil.now());
             venta.put("estado", 1);
             venta.put("descripcion", "Venta Rápida");
@@ -1106,13 +1124,22 @@ public class CompraVenta {
             //asiento.setDetalle(new AsientoContableDetalle(CuentaDeGanancias.getString("key"), "Ventas")
             //                .setHaber(total_venta));
 
+            JSONObject tipoPagoOriginal= null;
+            double amortizar=0;
             for (int i = 0; i < tiposPago.length(); i++) {
                 JSONObject tipoPago =  tiposPago.getJSONObject(i);
+            
+                tipoPagoOriginal = getTipoPago( tipoPago.getString("key_tipo_pago"));
+
+                if(!tipoPagoOriginal.optBoolean("is_credito",false)){
+                    amortizar+=tipoPago.getDouble("monto");
+                }
+                
                 if(tipoPago.optBoolean("pasa_por_caja",false)){
                     asiento.setDetalle(new AsientoContableDetalle(caja.getString("key_cuenta_contable"), "Venta rapida Caja")
                         .setDebe(tipoPago.getDouble("monto")));
                 }else{
-                    JSONObject puntoVentaTipoPago = puntoVentaTipoPago(caja.getString("key_punto_venta"), tipoPago.getString("key"));
+                    JSONObject puntoVentaTipoPago = puntoVentaTipoPago(caja.getString("key_punto_venta"), tipoPagoOriginal.getString("key"));
                     asiento.setDetalle(new AsientoContableDetalle(puntoVentaTipoPago.getString("key_cuenta_contable"), "Venta rapida Banco")
                         .setDebe(tipoPago.getDouble("monto")));
 
@@ -1144,14 +1171,25 @@ public class CompraVenta {
 
              for (int i = 0; i < tiposPago.length(); i++) {
                 JSONObject tipoPago =  tiposPago.getJSONObject(i);
-                JSONObject puntoVentaTipoPago = puntoVentaTipoPago(caja.getString("key_punto_venta"), tipoPago.getString("key"));
-                setDetalleCaja(caja.getString("key"), puntoVentaTipoPago.getString("key_tipo_pago"), tipoPago.getDouble("monto"), "Venta Rapida", "venta_rapida",asientoContable.getString("key"),asientoContable.getString("codigo"), data.getString("key_usuario"), info);
-            
+
+                moneda= ContaHook.getMoneda(caja.getString("key_empresa"), tipoPago.getString("key_moneda"));
+
+                
+
+                double dmonto = tipoPago.getDouble("monto")/moneda.optDouble("tipo_cambio",1);
+                dmonto = Math.round(dmonto * 100.0) / 100.0; // Redondear a dos decimales
+
+                JSONObject puntoVentaTipoPago = ContaHook.puntoVentaTipoPago(tipoPago.getString("key"));
+                setDetalleCaja(caja.getString("key"), tipoPago.getString("key"), dmonto, "Venta Rapida", "venta_rapida",asientoContable.getString("key"),asientoContable.getString("codigo"), data.getString("key_usuario"), info, puntoVentaTipoPago.getString("key_moneda"), moneda.getDouble("tipo_cambio"), puntoVentaTipoPago.getString("key_tipo_pago"));
             }
             // asiento.enviar();
             obj.put("data", venta);
             obj.put("estado", "exito");
             conectInstance.commit();
+
+            CuotaAmortizacion.intentarAmortizar(cuota_inicial.getString("key"), new JSONObject().put("monto", amortizar).put("fecha", SUtil.now()));
+
+            
         } catch (Exception e) {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
@@ -1203,7 +1241,7 @@ public class CompraVenta {
         }
         return resp;
     }
-    public static JSONObject setDetalleCaja(String key_caja, String key_tipo_pago, double monto, String desc, String tipo, String key_comprobante,String codigo_comprobante, String key_usuario, JSONObject info) {
+    public static JSONObject setDetalleCaja(String key_caja, String key_punto_venta_tipo_pago, double monto, String desc, String tipo, String key_comprobante,String codigo_comprobante, String key_usuario, JSONObject info, String key_moneda, double tipo_cambio, String key_tipo_pago) {
         JSONObject send = new JSONObject();
         send.put("component", "caja_detalle");
         send.put("type", "registro");
@@ -1212,8 +1250,11 @@ public class CompraVenta {
 
         JSONObject det = new JSONObject();
         det.put("key_caja", key_caja);
+        det.put("key_punto_venta_tipo_pago", key_punto_venta_tipo_pago);
         det.put("key_tipo_pago", key_tipo_pago);
         det.put("monto", monto);
+        det.put("key_moneda", key_moneda);
+        det.put("tipo_cambio", tipo_cambio);
         det.put("descripcion", desc);
         det.put("tipo", tipo);
         det.put("fecha", SUtil.now());
@@ -1234,5 +1275,6 @@ public class CompraVenta {
         JSONObject resp = SocketCliente.sendSinc("empresa", send);
         return resp.getJSONObject("data");
     }
+    
     
 }
