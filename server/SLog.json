@@ -6,10 +6,6 @@
     "empresa": true,
     "inventario": true
   },
-  "PostgreSQL": {
-    "host": "jdbc:postgresql://192.168.5.41:5432/servisofts.compra_venta",
-    "status": "exito"
-  },
   "- SLog": "RealTime Log from server Servisofts",
-  "- Fecha": "2025-09-03T19:56:45.213-04:00"
+  "- Fecha": "2025-09-03T20:18:50.335-04:00"
 }
