@@ -1,12 +1,11 @@
 {
   "Servicios": {
-    "notification": false,
+    "notification": true,
     "contabilidad": true,
     "caja": true,
     "empresa": true,
-    "inventario": true,
-    "status": "desconectado"
+    "inventario": true
   },
   "- SLog": "RealTime Log from server Servisofts",
-  "- Fecha": "2025-09-04T02:33:03.544-04:00"
+  "- Fecha": "2025-09-05T18:44:11.256-04:00"
 }
