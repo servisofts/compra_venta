@@ -5,6 +5,7 @@
     "caja": true,
     "empresa": true,
     "inventario": true
+<<<<<<< HEAD
   },
   "PostgreSQL": {
     "host": "jdbc:postgresql://192.168.5.41:5432/servisofts.compra_venta",
@@ -12,4 +13,9 @@
   },
   "- SLog": "RealTime Log from server Servisofts",
   "- Fecha": "2025-09-05T05:19:41.343-04:00"
+=======
+  },
+  "- SLog": "RealTime Log from server Servisofts",
+  "- Fecha": "2025-09-05T18:44:11.256-04:00"
+>>>>>>> 03845b5e87077d74308989652e70be8af81353b5
 }
