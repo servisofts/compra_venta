@@ -1,5 +1,6 @@
 package Contabilidad;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import SocketCliente.SocketCliente;
 
@@ -23,6 +24,17 @@ public class ContaHook {
         return resp;
     }
 
+    public static JSONObject getMonedas(String key_empresa){
+        JSONObject send = new JSONObject();
+        send.put("service", "empresa");
+        send.put("component", "empresa_moneda");
+        send.put("type", "getAll");
+        send.put("key_empresa", key_empresa);
+        JSONObject resp = SocketCliente.sendSinc("empresa", send);
+        return resp.getJSONObject("data");
+
+    }
+
     public static JSONObject getAjusteEmpresa(String key_empresa, String key_ajuste) {
         JSONObject send = new JSONObject();
         send.put("component", "ajuste_empresa");
@@ -32,7 +44,7 @@ public class ContaHook {
         JSONObject resp = SocketCliente.sendSinc("contabilidad", send);
         return resp.getJSONObject("data");
     }
-
+    
     public static JSONObject getTipoPago(String key_tipo_pago) {
         JSONObject send = new JSONObject();
         send.put("component", "tipo_pago");
@@ -41,6 +53,7 @@ public class ContaHook {
         JSONObject resp = SocketCliente.sendSinc("empresa", send);
         return resp.getJSONObject("data");
     }
+    
 
     public static JSONObject puntoVentaTipoPago(String key_punto_venta_tipo_pago) {
         JSONObject send = new JSONObject();
@@ -66,6 +79,25 @@ public class ContaHook {
             }
         }
         return resp;
+    }
+
+    public static JSONObject puntosVentaTipoPago(String key_punto_venta) {
+        JSONObject send = new JSONObject();
+        send.put("component", "punto_venta_tipo_pago");
+        send.put("type", "getAll");
+        send.put("key_punto_venta", key_punto_venta);
+        JSONObject resp = SocketCliente.sendSinc("empresa", send);
+        return resp.getJSONObject("data");
+
+    }
+
+    public static JSONObject tiposPago() {
+        JSONObject send = new JSONObject();
+        send.put("component", "tipo_pago");
+        send.put("type", "getAll");
+        JSONObject resp = SocketCliente.sendSinc("empresa", send);
+        return resp.getJSONObject("data");
+
     }
    
     public static JSONObject puntoVentaTipoPago(String key_punto_venta, String key_tipo_pago, String key_moneda) {
