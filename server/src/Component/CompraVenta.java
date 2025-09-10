@@ -900,6 +900,13 @@ public class CompraVenta {
             asiento.key_empresa = key_empresa;
             asiento.key_usuario = data.getString("key_usuario");
 
+            JSONObject tags = new JSONObject()
+                .put("key_usuario", data.getString("key_usuario"))
+                .put("key_caja", caja.getString("key"))
+                .put("key_punto_venta", punto_venta.getString("key"))
+                .put("key_sucursal", sucursal.getString("key"));
+
+
             JSONObject tipoPagoOriginal = null;
             for (int i = 0; i < tiposPago.length(); i++) {
                 JSONObject tipoPago =  tiposPago.getJSONObject(i);
@@ -913,10 +920,13 @@ public class CompraVenta {
                 
 
                 if(tipoPago.optBoolean("pasa_por_caja",false)){
-                    asiento.setDetalle(new AsientoContableDetalle(caja.getString("key_cuenta_contable"), "Compra Rapida", moneda.getString("key"), moneda.optDouble("tipo_cambio",1))
-                        .setHaber(tipoPago.getDouble("monto")));
+
+
+
+                    asiento.setDetalle(new AsientoContableDetalle(caja.getString("key_cuenta_contable"), "Compra Rapida", moneda.getString("key"), moneda.optDouble("tipo_cambio",1), tags)
+                        .setHaber(tipoPago.getDouble("monto")));    
                 }else{
-                    asiento.setDetalle(new AsientoContableDetalle(tipoPago.getString("key_cuenta_contable"), "Compra Rapida", moneda.getString("key"), moneda.optDouble("tipo_cambio",1))
+                    asiento.setDetalle(new AsientoContableDetalle(tipoPago.getString("key_cuenta_contable"), "Compra Rapida", moneda.getString("key"), moneda.optDouble("tipo_cambio",1), tags)
                         .setHaber(tipoPago.getDouble("monto")));
                         
                 }
@@ -932,12 +942,12 @@ public class CompraVenta {
             
                 if(data.optBoolean("facturar_luego", false)){
                     JSONObject CuentaDeIva = Contabilidad.getAjusteEmpresa(key_empresa, "credito_iva_por_cobrar");
-                    asiento.setDetalle(new AsientoContableDetalle(CuentaDeIva.getString("key"), "Compra Rapida Iva por cobrar")
+                    asiento.setDetalle(new AsientoContableDetalle(CuentaDeIva.getString("key"), "Compra Rapida Iva por cobrar", tags)
                         .setDebe(iva));
                 }else{
                     
                     JSONObject CuentaDeIva = Contabilidad.getAjusteEmpresa(key_empresa, "credito_iva");
-                    asiento.setDetalle(new AsientoContableDetalle(CuentaDeIva.getString("key"), "Compra Rapida Iva")
+                    asiento.setDetalle(new AsientoContableDetalle(CuentaDeIva.getString("key"), "Compra Rapida Iva", tags)
                         .setDebe(iva));
                 }
                 data.put("precio_facturado", total_compra);
