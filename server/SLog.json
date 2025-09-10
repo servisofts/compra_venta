@@ -2,9 +2,9 @@
   "Servicios": {
     "notification": true,
     "contabilidad": true,
-    "caja": true,
+    "caja": false,
     "empresa": true,
-    "inventario": true
+    "inventario": false
   },
   "- SLog": "RealTime Log from server Servisofts",
   "- Fecha": "2025-09-10T00:58:44.084-04:00"
