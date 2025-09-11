@@ -2,7 +2,7 @@ package Contabilidad;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import SocketCliente.SocketCliente;
+import Servisofts.SocketCliente.SocketCliente;
 
 public class ContaHook {
 

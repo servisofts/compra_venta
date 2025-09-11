@@ -5,7 +5,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
-import Server.SSSAbstract.SSSessionAbstract;
+import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 
 public class CompraVentaDetalleProducto {
     public static final String COMPONENT = "compra_venta_detalle_producto";

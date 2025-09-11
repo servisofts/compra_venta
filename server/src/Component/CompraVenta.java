@@ -13,9 +13,9 @@ import Servisofts.Contabilidad.Contabilidad;
 import Servisofts.SConsole;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
-import SocketCliente.SocketCliente;
+import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
-import Server.SSSAbstract.SSSessionAbstract;
+import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
