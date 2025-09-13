@@ -24,6 +24,24 @@ public class ContaHook {
         return resp;
     }
 
+    public static JSONObject getMonedaBase(String key_empresa){
+        JSONObject send = new JSONObject();
+        send.put("service", "empresa");
+        send.put("component", "empresa_moneda");
+        send.put("type", "getAll");
+        send.put("key_empresa", key_empresa);
+        JSONObject resp = SocketCliente.sendSinc("empresa", send);
+        resp = resp.getJSONObject("data");
+
+        for (String key : resp.keySet()) {
+            JSONObject item = resp.getJSONObject(key);
+            if (item.getString("tipo").equals("base")) {
+                return item;
+            }
+        }
+        return resp;
+    }
+
     public static JSONObject getMonedas(String key_empresa){
         JSONObject send = new JSONObject();
         send.put("service", "empresa");

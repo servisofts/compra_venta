@@ -2,8 +2,13 @@ package Component;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import Contabilidad.ContaHook;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
+import Servisofts.Contabilidad.AsientoContable;
+import Servisofts.Contabilidad.AsientoContableDetalle;
+import Servisofts.Contabilidad.AsientoContableTipo;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 
 public class CuotaAmortizacion {
@@ -98,11 +103,6 @@ public class CuotaAmortizacion {
 
             obj.put("estado", "exito");
 
-            if(data.getString("estado").equals("error")){
-                obj.put("estado", "error");
-                obj.put("error", data.getString("error"));
-            }
-
             
             
            
@@ -148,9 +148,94 @@ public class CuotaAmortizacion {
             System.out.println("amortizar");
 
             if(data.getDouble("monto")>=monto_deuda){   
-                cuota.put("estado", 2);               
+                cuota.put("estado", 1);               
                 SPGConect.editObject("cuota", cuota);   
             }
+
+
+            JSONObject caja = CompraVenta.getCaja(data.getString("key_caja"));
+            JSONObject punto_venta = CompraVenta.getPuntoVenta(caja.getString("key_punto_venta"));
+            JSONObject sucursal = CompraVenta.getSucursal(punto_venta.getString("key_sucursal"));
+            
+
+            JSONObject monedas = ContaHook.getMonedas(sucursal.getString("key_empresa"));
+            String keyMoneda = data.getString("key_moneda");
+            JSONObject monedaCaja = monedas.getJSONObject(keyMoneda);
+            double tipo_cambioCaja = monedaCaja.getDouble("tipo_cambio");
+
+            JSONObject puntoVentaTiposPago = ContaHook.puntosVentaTipoPago(caja.getString("key_punto_venta"));
+            JSONObject tiposPago = ContaHook.tiposPago();
+            double totalPago = 0;
+
+            AsientoContable asiento = new AsientoContable(AsientoContableTipo.ingreso);
+            asiento.descripcion = "Amortizacion de cuota";
+            asiento.observacion = "Amortizacion de cuota obs";
+            asiento.fecha = SUtil.now();
+            asiento.key_empresa = sucursal.getString("key_empresa");
+            asiento.key_usuario = data.getString("key_usuario");
+
+            
+
+
+            JSONObject tags = new JSONObject()
+                .put("key_usuario", data.getString("key_usuario"))
+                .put("key_caja", caja.getString("key"))
+                .put("key_punto_venta", punto_venta.getString("key"))
+                .put("key_sucursal", sucursal.getString("key"))
+                .put("key_cuota", cuota.getString("key"));
+
+
+                
+            double amortizar = 0;
+            for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
+                JSONObject tipoPago =  puntoVentaTiposPago.getJSONObject(JSONObject.getNames(data.getJSONObject("tipos_pago"))[i]);
+
+               
+                JSONObject moneda = monedas.getJSONObject(tipoPago.getString("key_moneda"));
+
+                JSONObject tipoPagoOriginal = tiposPago.getJSONObject(tipoPago.getString("key_tipo_pago"));
+
+                if(!tipoPagoOriginal.optBoolean("is_credito",false)){
+                    amortizar+=tipoPago.getDouble("monto_nacional");
+                }
+                
+                tags.put("key_tipo_pago", tipoPago.getString("key_tipo_pago"));
+
+
+                String keyCuenta=tipoPago.getString("key_cuenta_contable");
+                if(tipoPago.optBoolean("pasa_por_caja",false)){
+                    keyCuenta = caja.getString("key_cuenta_contable");
+                }
+
+                //double montoBase = tipoPago.getDouble("monto")/moneda.optDouble("tipo_cambio",1);
+                double montoTc = tipoPago.getDouble("monto_nacional");
+                montoTc = Math.round(montoTc * 100.0) / 100.0; // Redondear a dos decimales
+                asiento.setDetalle(new AsientoContableDetalle(
+                    keyCuenta,
+                    "Amortizacion de cuota", 
+                    "debe", 
+                    tipoPago.optDouble("monto_nacional"),
+                    tipoPago.optDouble("monto_extranjera"),
+                    tags));
+            }
+            tags.remove("key_tipo_pago");
+
+            JSONObject asientoContable = asiento.enviar();
+            
+            for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
+
+                JSONObject puntoVentaTipoPago =  puntoVentaTiposPago.getJSONObject(JSONObject.getNames(data.getJSONObject("tipos_pago"))[i]);
+
+                JSONObject moneda= monedas.getJSONObject(puntoVentaTipoPago.getString("key_moneda"));
+
+                double dmonto = puntoVentaTipoPago.getDouble("monto_extranjera");
+                dmonto = Math.round(dmonto * 100.0) / 100.0; // Redondear a dos decimales
+
+                CompraVenta.setDetalleCaja(data.getString("key_caja"), puntoVentaTipoPago.getString("key_tipo_pago"), dmonto, "Venta Rapida", "venta_rapida",asientoContable.getString("key"),asientoContable.getString("codigo"), data.getString("key_usuario"), tags, puntoVentaTipoPago.getString("key_moneda"), moneda.getDouble("tipo_cambio"), puntoVentaTipoPago.getString("key_tipo_pago"));
+            }
+
+            //CompraVenta.setDetalleCaja(data.getString("key_caja"), tipoPago.getString("key"), data.getDouble("monto")*-1, "Amotizar cuota", "amortizar_cuota", asientoContable.getString("key"), asientoContable.getString("codigo"), data.getString("key_usuario"), tags, moneda.getString("key"), moneda.optDouble("tipo_cambio",1), tipoPago.getString("key_tipo_pago"));
+                
 
             
 
