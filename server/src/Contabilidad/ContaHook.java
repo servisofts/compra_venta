@@ -8,7 +8,6 @@ public class ContaHook {
 
     public static JSONObject getMoneda(String key_empresa, String key_moneda){
         JSONObject send = new JSONObject();
-        send.put("service", "empresa");
         send.put("component", "empresa_moneda");
         send.put("type", "getAll");
         send.put("key_empresa", key_empresa);
@@ -26,7 +25,6 @@ public class ContaHook {
 
     public static JSONObject getMonedaBase(String key_empresa){
         JSONObject send = new JSONObject();
-        send.put("service", "empresa");
         send.put("component", "empresa_moneda");
         send.put("type", "getAll");
         send.put("key_empresa", key_empresa);
@@ -44,7 +42,6 @@ public class ContaHook {
 
     public static JSONObject getMonedas(String key_empresa){
         JSONObject send = new JSONObject();
-        send.put("service", "empresa");
         send.put("component", "empresa_moneda");
         send.put("type", "getAll");
         send.put("key_empresa", key_empresa);
@@ -107,6 +104,15 @@ public class ContaHook {
         JSONObject resp = SocketCliente.sendSinc("empresa", send);
         return resp.getJSONObject("data");
 
+    }
+
+    public static JSONObject getCuentaContable(String key_cuenta_contable) {
+        JSONObject send = new JSONObject();
+        send.put("component", "cuenta_contable");
+        send.put("type", "getByKey");
+        send.put("key", key_cuenta_contable);
+        JSONObject resp = SocketCliente.sendSinc("contabilidad", send);
+        return resp.getJSONObject("data");
     }
 
     public static JSONObject tiposPago() {
