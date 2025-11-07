@@ -91,7 +91,7 @@ public class CompraVenta {
 
             JSONObject moneda = ContaHook.getMoneda(caja.getString("key_empresa"), data.getString("key_moneda"));
 
-               double totalDescuento = 0;
+            double totalDescuento = 0;
             
             JSONArray descuentosObj = data.optJSONArray("descuentos");
             if (descuentosObj != null) {
@@ -101,8 +101,12 @@ public class CompraVenta {
                     if(!descuentos.has(key_descuento)){
                         throw new Exception("El descuento con key " + key_descuento + " no existe");
                     }
-                    totalDescuento += descuentos.getJSONObject(key_descuento).getDouble("monto");
+                    totalDescuento += descuentos.getJSONObject(key_descuento).getDouble("porcentaje");
                 }
+            }
+
+            if(totalDescuento > 100){
+                throw new Exception("El descuento no puede ser mayor al 100%");
             }
 
 
@@ -123,7 +127,6 @@ public class CompraVenta {
             compraVenta.put("key_moneda", moneda.getString("key"));
             compraVenta.put("tipo_cambio", moneda.getDouble("tipo_cambio"));
             compraVenta.put("facturar", data.getBoolean("facturar"));
-            compraVenta.put("descuento", totalDescuento);
 
             conectInstance.insertObject("compra_venta", compraVenta);
 
@@ -137,7 +140,7 @@ public class CompraVenta {
                     JSONObject descuento = new JSONObject();
                     descuento.put("key", SUtil.uuid());
                     descuento.put("monto", descuentosObj.getJSONObject(i).getDouble("monto"));
-                    descuento.put("state", 1);
+                    descuento.put("estado", 1);
                     descuento.put("fecha_on", SUtil.now());
                     descuento.put("key_usuario", data.getString("key_usuario"));
                     descuento.put("key_compra_venta", compraVenta.getString("key"));
@@ -147,7 +150,11 @@ public class CompraVenta {
             }
             conectInstance.insertArray("compra_venta_descuento", compraVentaDescuentos);
 
-
+            String obs = data.optString("observacion", null);
+            if(obs == null){
+                obs = (tipo == "compra" ? "Compra" : "Venta");
+            }
+            data.put("observacion", obs);
          
             double total_compra_venta = 0;
 
@@ -170,13 +177,22 @@ public class CompraVenta {
                 item.put("estado", 1);
                 item.put("fecha_on", SUtil.now());
                 item.put("key_compra_venta", compraVenta.getString("key"));
+                
             }
 
             total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0; // Redondear a dos decimales
             //total_compra_venta -= totalDescuento;
+            double descuento = total_compra_venta * (totalDescuento);
+            // Redondear a dos decimales
+            compraVenta.put("descuento", descuento);
+            conectInstance.editObject("compra_venta", compraVenta);
+
+            total_compra_venta -= descuento;
+
+            total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0;
 
             JSONObject tiposPago = data.getJSONObject("tipos_pago");
-            Double montoBase = 0.0;
+            double montoBase = 0.0;
 
             JSONArray cuotas = new JSONArray();
 
@@ -226,10 +242,7 @@ public class CompraVenta {
                     conectInstance.insertObject("cuota_amortizacion", cuotaAmortizacion);
 
                 }
-                
-
                 cuotas.put(cuota);
-
             }
 
             if (total_compra_venta != montoBase) {
