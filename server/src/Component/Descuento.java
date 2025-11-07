@@ -38,7 +38,7 @@ public class Descuento {
             e.printStackTrace();
         }
     }
-
+    
     public static JSONObject getAll(String key_empresa) {
         try {
             String consulta = "select get_all('" + COMPONENT + "', 'key_empresa', '"+key_empresa+"') as json";

@@ -91,6 +91,21 @@ public class CompraVenta {
 
             JSONObject moneda = ContaHook.getMoneda(caja.getString("key_empresa"), data.getString("key_moneda"));
 
+               double totalDescuento = 0;
+            
+            JSONArray descuentosObj = data.optJSONArray("descuentos");
+            if (descuentosObj != null) {
+                JSONObject descuentos = Descuento.getAll(caja.getString("key_empresa"));
+                for (int i = 0; i < descuentosObj.length(); i++) {
+                    String key_descuento = descuentosObj.getJSONObject(i).optString("key");
+                    if(!descuentos.has(key_descuento)){
+                        throw new Exception("El descuento con key " + key_descuento + " no existe");
+                    }
+                    totalDescuento += descuentos.getJSONObject(key_descuento).getDouble("monto");
+                }
+            }
+
+
             JSONObject compraVenta = new JSONObject();
             compraVenta.put("key", SUtil.uuid());
             compraVenta.put("estado", 1);
@@ -108,11 +123,32 @@ public class CompraVenta {
             compraVenta.put("key_moneda", moneda.getString("key"));
             compraVenta.put("tipo_cambio", moneda.getDouble("tipo_cambio"));
             compraVenta.put("facturar", data.getBoolean("facturar"));
+            compraVenta.put("descuento", totalDescuento);
 
             conectInstance.insertObject("compra_venta", compraVenta);
 
             data.put("compra_venta", compraVenta);
 
+            JSONArray compraVentaDescuentos = new JSONArray();
+
+            if (descuentosObj != null) {
+                for (int i = 0; i < descuentosObj.length(); i++) {
+                    String key_descuento = descuentosObj.getJSONObject(i).optString("key");
+                    JSONObject descuento = new JSONObject();
+                    descuento.put("key", SUtil.uuid());
+                    descuento.put("monto", descuentosObj.getJSONObject(i).getDouble("monto"));
+                    descuento.put("state", 1);
+                    descuento.put("fecha_on", SUtil.now());
+                    descuento.put("key_usuario", data.getString("key_usuario"));
+                    descuento.put("key_compra_venta", compraVenta.getString("key"));
+                    descuento.put("key_descuento", key_descuento);
+                    compraVentaDescuentos.put(descuento);
+                }
+            }
+            conectInstance.insertArray("compra_venta_descuento", compraVentaDescuentos);
+
+
+         
             double total_compra_venta = 0;
 
             for (int i = 0; i < detalle.length(); i++) {
@@ -137,6 +173,7 @@ public class CompraVenta {
             }
 
             total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0; // Redondear a dos decimales
+            //total_compra_venta -= totalDescuento;
 
             JSONObject tiposPago = data.getJSONObject("tipos_pago");
             Double montoBase = 0.0;
@@ -1062,8 +1099,8 @@ public class CompraVenta {
             conectInstance.insertObject("cuota", cuota_inicial);
 
             AsientoContable asiento = new AsientoContable(AsientoContableTipo.egreso);
-            asiento.descripcion = "Compra Rápida Iva";
-            asiento.observacion = "Compra rapida obs Iva";
+            asiento.descripcion = "Compra Iva";
+            asiento.observacion = "Compra iva Iva";
             asiento.key_empresa = key_empresa;
             asiento.key_usuario = data.getString("key_usuario");
 
@@ -1115,7 +1152,7 @@ public class CompraVenta {
 
                     asiento.setDetalle(new AsientoContableDetalle(
                             CuentaDeIva.getString("key"),
-                            "Compra Rapida Iva por cobrar",
+                            "Compra Iva por cobrar",
                             "debe",
                             iva,
                             iva,
@@ -1126,7 +1163,7 @@ public class CompraVenta {
 
                     asiento.setDetalle(new AsientoContableDetalle(
                             CuentaDeIva.getString("key"),
-                            "Compra Rapida Iva",
+                            "Compra Iva",
                             "debe",
                             iva,
                             iva,
