@@ -91,6 +91,12 @@ public class CompraVenta {
 
             JSONObject moneda = ContaHook.getMoneda(caja.getString("key_empresa"), data.getString("key_moneda"));
 
+            String obs = data.optString("observacion", null);
+            if(obs == null){
+                obs = (tipo == "compra" ? "Compra" : "Venta");
+            }
+            data.put("observacion", obs);
+
             JSONObject compraVenta = new JSONObject();
             compraVenta.put("key", SUtil.uuid());
             compraVenta.put("estado", 1);
@@ -134,6 +140,7 @@ public class CompraVenta {
                 item.put("estado", 1);
                 item.put("fecha_on", SUtil.now());
                 item.put("key_compra_venta", compraVenta.getString("key"));
+                
             }
 
             total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0; // Redondear a dos decimales
@@ -189,10 +196,7 @@ public class CompraVenta {
                     conectInstance.insertObject("cuota_amortizacion", cuotaAmortizacion);
 
                 }
-                
-
                 cuotas.put(cuota);
-
             }
 
             if (total_compra_venta != montoBase) {
