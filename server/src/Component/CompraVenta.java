@@ -69,8 +69,8 @@ public class CompraVenta {
             case "compraRapida":
                 compraRapida(obj, session);
                 break;
-            case "anularCompraVenta":
-                anularCompraVenta(obj, session);
+            case "anularVenta":
+                anularVenta(obj, session);
                 break;
             case "compraCaja":
                 compraVentaCaja(obj, session, "compra");
@@ -81,16 +81,40 @@ public class CompraVenta {
         }
     }
 
-    public static void anularCompraVenta(JSONObject obj, SSSessionAbstract session) {
+    public static void anularVenta(JSONObject obj, SSSessionAbstract session) {
         ConectInstance conectInstance = null;
         try {
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
 
             String key_compra_venta = obj.getString("key_compra_venta");
-            JSONObject compraVenta = CompraVenta.getByKey(key_compra_venta);
+            String query = """
+                    SELECT to_json(sq1.*) AS json
+                    FROM (
+                            SELECT
+                                compra_venta.*,
+                                array_to_json(array_agg(cvd)) AS detalles
+                            FROM compra_venta
+                            LEFT JOIN (
+                                SELECT
+                                    compra_venta_detalle.*,
+                                    array_to_json(array_agg(compra_venta_detalle_producto.*)) AS compra_venta_detalle_producto
+                                FROM compra_venta_detalle
+                                LEFT JOIN compra_venta_detalle_producto
+                                ON compra_venta_detalle_producto.key_compra_venta_detalle = compra_venta_detalle.key AND compra_venta_detalle_producto.estado > 0
+                                WHERE compra_venta_detalle.key_compra_venta = '%s' AND compra_venta_detalle.estado > 0
+                                GROUP BY compra_venta_detalle.key
+
+                            ) cvd ON compra_venta.key = cvd.key_compra_venta
+                            where compra_venta.key = '%s'
+                            GROUP BY compra_venta.key
+                        ) sq1
+                            """
+                    .formatted(key_compra_venta, key_compra_venta);
+            JSONObject compraVenta = SPGConect.ejecutarConsultaObject(query);
             compraVenta.put("estado", 0);
             conectInstance.editObject("compra_venta", compraVenta);
+            // compraVenta.put("detalles", detalles);
 
             JSONObject empresa_tipo_pago = obj.getJSONObject("empresa_tipo_pago");
             String consultaGetCuotas = """
@@ -130,10 +154,9 @@ public class CompraVenta {
                     JSONObject etp = empresa_tipo_pago.getJSONObject(cuota.getString("key_empresa_tipo_pago"));
                     detallesm.put(new JSONObject()
                             .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
-                            .put("debe", 0)
-                            .put("debe_me", 0)
-                            .put("haber", monto_sin_pagar)
-                            .put("haber_me", monto_sin_pagar_me)
+                            .put("tipo", "haber")
+                            .put("monto", monto_sin_pagar)
+                            .put("monto_me", monto_sin_pagar_me)
                             .put("glosa", "Revertir cuota pendiente por pagar"));
                     // Revertir cuota;
                 }
@@ -155,10 +178,9 @@ public class CompraVenta {
                                 .getJSONObject(amortizacion.getString("key_empresa_tipo_pago"));
                         detallesm.put(new JSONObject()
                                 .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
-                                .put("debe", 0)
-                                .put("debe_me", 0)
-                                .put("haber", amortizacion.getDouble("monto_base"))
-                                .put("haber_me", monto_me)
+                                .put("tipo", "haber")
+                                .put("monto", amortizacion.getDouble("monto_base"))
+                                .put("monto_me", monto_me)
                                 .put("glosa", "Revertir amortizacion pagada"));
 
                         amortizacion.put("estado", 0);
@@ -178,7 +200,9 @@ public class CompraVenta {
             // send.put("key_compra_venta", key_compra_venta);
 
             JSONObject data = SocketCliente.sendSinc("inventario", obj);
-
+            if (!data.getString("estado").equals("exito")) {
+                throw new Exception(data.optString("error", "Error al anular la venta en inventario"));
+            }
             obj.put("data", compraVenta);
             obj.put("estado", "exito");
             conectInstance.commit();
@@ -309,6 +333,7 @@ public class CompraVenta {
             total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0; // Redondear a dos decimales
             // total_compra_venta -= totalDescuento;
             double descuento = total_compra_venta * (totalDescuento);
+             descuento = Math.round(descuento * 100.0) / 100.0;
             // Redondear a dos decimales
             compraVenta.put("descuento", descuento);
             conectInstance.editObject("compra_venta", compraVenta);
