@@ -93,6 +93,16 @@ public class CompraVenta {
                     FROM (
                             SELECT
                                 compra_venta.*,
+                                (
+                                    SELECT
+                                        array_to_json(array_agg(descuento.*)) AS total_descuento
+                                    FROM compra_venta_descuento,
+                                    descuento
+                                    WHERE compra_venta_descuento.key_compra_venta = compra_venta.key
+                                    AND compra_venta_descuento.estado > 0
+                                    AND descuento.key = compra_venta_descuento.key_descuento
+                                    AND descuento.estado > 0
+                                ) as descuentos,
                                 array_to_json(array_agg(cvd)) AS detalles
                             FROM compra_venta
                             LEFT JOIN (
@@ -140,6 +150,21 @@ public class CompraVenta {
             JSONArray cuotas = conectInstance.ejecutarConsultaArray(consultaGetCuotas);
 
             JSONArray detallesm = new JSONArray();
+
+            JSONArray descuentos = compraVenta.optJSONArray("descuentos");
+            if(descuentos != null && descuentos.length() > 0){
+                
+                for (int i = 0; i < descuentos.length(); i++) {
+                    JSONObject descuento = descuentos.getJSONObject(i);
+                    String key_cuenta_contable = descuento.getString("key_cuenta_contable");
+                    detallesm.put(new JSONObject()
+                            .put("key_cuenta_contable", key_cuenta_contable)
+                            .put("tipo", "haber")
+                            .put("monto", compraVenta.getDouble("descuento"))
+                            .put("monto_me", 0)
+                            .put("glosa", "Revertir descuento aplicado"));
+                }
+            }
 
             for (int i = 0; i < cuotas.length(); i++) {
                 JSONObject cuota = cuotas.getJSONObject(i);
@@ -398,7 +423,7 @@ public class CompraVenta {
                 }
                 cuotas.put(cuota);
             }
-
+            montoBase = Math.round(montoBase * 100.0) / 100.0;
             if (total_compra_venta != montoBase) {
                 throw new Exception("El total de la " + tipo + " no coincide con el total pagado, " + total_compra_venta
                         + " != " + montoBase);
