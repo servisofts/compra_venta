@@ -5,6 +5,9 @@ import java.sql.SQLException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import Component.CompraVenta_Components.AmortizarCuotas;
+import Component.CompraVenta_Components.AnularVenta;
+import Component.CompraVenta_Components.CompraVentaCaja;
 import Contabilidad.ContaHook;
 import Servisofts.Contabilidad.AsientoContable;
 import Servisofts.Contabilidad.AsientoContableDetalle;
@@ -29,6 +32,9 @@ public class CompraVenta {
                 break;
             case "getByKey":
                 getByKey(obj, session);
+                break;
+            case "getJson":
+                getJson(obj, session);
                 break;
             case "getClientes":
                 getClientes(obj, session);
@@ -69,400 +75,20 @@ public class CompraVenta {
             case "compraRapida":
                 compraRapida(obj, session);
                 break;
+
+            // InComponents
+            case "amortizarCuotaCompra":
+                new AmortizarCuotas(obj, session, "compra");
+                break;
             case "anularVenta":
-                anularVenta(obj, session);
+                new AnularVenta(obj, session);
                 break;
             case "compraCaja":
-                compraVentaCaja(obj, session, "compra");
+                new CompraVentaCaja(obj, session, "compra");
                 break;
             case "ventaCaja":
-                compraVentaCaja(obj, session, "venta");
+                new CompraVentaCaja(obj, session, "venta");
                 break;
-        }
-    }
-
-    public static void anularVenta(JSONObject obj, SSSessionAbstract session) {
-        ConectInstance conectInstance = null;
-        try {
-            conectInstance = new ConectInstance();
-            conectInstance.Transacction();
-
-            String key_compra_venta = obj.getString("key_compra_venta");
-            String query = """
-                    SELECT to_json(sq1.*) AS json
-                    FROM (
-                            SELECT
-                                compra_venta.*,
-                                (
-                                    SELECT
-                                        array_to_json(array_agg(descuento.*)) AS total_descuento
-                                    FROM compra_venta_descuento,
-                                    descuento
-                                    WHERE compra_venta_descuento.key_compra_venta = compra_venta.key
-                                    AND compra_venta_descuento.estado > 0
-                                    AND descuento.key = compra_venta_descuento.key_descuento
-                                    AND descuento.estado > 0
-                                ) as descuentos,
-                                array_to_json(array_agg(cvd)) AS detalles
-                            FROM compra_venta
-                            LEFT JOIN (
-                                SELECT
-                                    compra_venta_detalle.*,
-                                    array_to_json(array_agg(compra_venta_detalle_producto.*)) AS compra_venta_detalle_producto
-                                FROM compra_venta_detalle
-                                LEFT JOIN compra_venta_detalle_producto
-                                ON compra_venta_detalle_producto.key_compra_venta_detalle = compra_venta_detalle.key AND compra_venta_detalle_producto.estado > 0
-                                WHERE compra_venta_detalle.key_compra_venta = '%s' AND compra_venta_detalle.estado > 0
-                                GROUP BY compra_venta_detalle.key
-
-                            ) cvd ON compra_venta.key = cvd.key_compra_venta
-                            where compra_venta.key = '%s'
-                            GROUP BY compra_venta.key
-                        ) sq1
-                            """
-                    .formatted(key_compra_venta, key_compra_venta);
-            JSONObject compraVenta = SPGConect.ejecutarConsultaObject(query);
-            compraVenta.put("estado", 0);
-            conectInstance.editObject("compra_venta", compraVenta);
-            // compraVenta.put("detalles", detalles);
-
-            JSONObject empresa_tipo_pago = obj.getJSONObject("empresa_tipo_pago");
-            String consultaGetCuotas = """
-                    SELECT array_to_json(array_agg(sq1.*)) AS json
-                    FROM (
-                        SELECT
-                            cuota.*,
-                            array_to_json(
-                                array_agg(cuota_amortizacion.*)
-                                FILTER (WHERE cuota_amortizacion.key_cuota IS NOT NULL)
-                            ) AS cuota_amortizacion
-                        FROM cuota
-                        LEFT JOIN cuota_amortizacion
-                            ON cuota.key = cuota_amortizacion.key_cuota
-                           AND cuota_amortizacion.estado > 0
-                        WHERE cuota.key_compra_venta = '%s'
-                          AND cuota.estado > 0
-                        GROUP BY cuota.key
-                    ) sq1;
-                                            """
-                    .formatted(key_compra_venta);
-
-            JSONArray cuotas = conectInstance.ejecutarConsultaArray(consultaGetCuotas);
-
-            JSONArray detallesm = new JSONArray();
-
-            JSONArray descuentos = compraVenta.optJSONArray("descuentos");
-            if(descuentos != null && descuentos.length() > 0){
-                
-                for (int i = 0; i < descuentos.length(); i++) {
-                    JSONObject descuento = descuentos.getJSONObject(i);
-                    String key_cuenta_contable = descuento.getString("key_cuenta_contable");
-                    detallesm.put(new JSONObject()
-                            .put("key_cuenta_contable", key_cuenta_contable)
-                            .put("tipo", "haber")
-                            .put("monto", compraVenta.getDouble("descuento"))
-                            .put("monto_me", 0)
-                            .put("glosa", "Revertir descuento aplicado"));
-                }
-            }
-
-            for (int i = 0; i < cuotas.length(); i++) {
-                JSONObject cuota = cuotas.getJSONObject(i);
-                double monto_sin_pagar = cuota.optDouble("monto_base", 0) - cuota.optDouble("total_amortizado_base", 0);
-                if (monto_sin_pagar > 0) {
-                    double tipo_cambio = cuota.optDouble("monto", 0) / cuota.optDouble("monto_base", 0);
-                    double monto_sin_pagar_me = 0;
-                    if (tipo_cambio != 1) {
-                        monto_sin_pagar_me = Math.round(monto_sin_pagar * tipo_cambio * 100.0) / 100.0;
-                    }
-
-                    JSONObject etp = empresa_tipo_pago.getJSONObject(cuota.getString("key_empresa_tipo_pago"));
-                    detallesm.put(new JSONObject()
-                            .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
-                            .put("tipo", "haber")
-                            .put("monto", monto_sin_pagar)
-                            .put("monto_me", monto_sin_pagar_me)
-                            .put("glosa", "Revertir cuota pendiente por pagar"));
-                    // Revertir cuota;
-                }
-
-                cuota.put("estado", 0);
-                conectInstance.editObject("cuota", cuota);
-
-                JSONArray cuota_amortizacion = cuota.optJSONArray("cuota_amortizacion");
-                if (cuota_amortizacion != null) {
-                    for (int j = 0; j < cuota_amortizacion.length(); j++) {
-                        JSONObject amortizacion = cuota_amortizacion.getJSONObject(j);
-                        double tipo_cambio = amortizacion.optDouble("monto", 0)
-                                / amortizacion.optDouble("monto_base", 0);
-                        double monto_me = 0;
-                        if (tipo_cambio != 1) {
-                            monto_me = amortizacion.optDouble("monto", 0);
-                        }
-                        JSONObject etp = empresa_tipo_pago
-                                .getJSONObject(amortizacion.getString("key_empresa_tipo_pago"));
-                        detallesm.put(new JSONObject()
-                                .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
-                                .put("tipo", "haber")
-                                .put("monto", amortizacion.getDouble("monto_base"))
-                                .put("monto_me", monto_me)
-                                .put("glosa", "Revertir amortizacion pagada"));
-
-                        amortizacion.put("estado", 0);
-                        conectInstance.editObject("cuota_amortizacion", amortizacion);
-                    }
-                }
-            }
-
-            System.out.println(detallesm);
-            obj.put("detalle_cuotas", detallesm);
-            obj.put("compra_venta", compraVenta);
-            obj.put("component", "modelo");
-            // JSONObject send = new JSONObject();
-            // send.put("component", "compra_venta");
-            // send.put("type", "anularCompraVenta");
-            // send.put("key_usuario", obj.getString("key_usuario"));
-            // send.put("key_compra_venta", key_compra_venta);
-
-            JSONObject data = SocketCliente.sendSinc("inventario", obj);
-            if (!data.getString("estado").equals("exito")) {
-                throw new Exception(data.optString("error", "Error al anular la venta en inventario"));
-            }
-            obj.put("data", compraVenta);
-            obj.put("estado", "exito");
-            conectInstance.commit();
-
-            obj.put("data", data);
-            obj.put("estado", "exito");
-        } catch (Exception e) {
-            e.printStackTrace();
-            obj.put("estado", "error");
-            obj.put("error", e.getMessage());
-            conectInstance.rollback();
-        } finally {
-            if (conectInstance != null) {
-                conectInstance.close();
-            }
-        }
-    }
-
-    public static void compraVentaCaja(JSONObject obj, SSSessionAbstract session, String tipo) {
-        ConectInstance conectInstance = null;
-        try {
-            conectInstance = new ConectInstance();
-            conectInstance.Transacction();
-
-            JSONObject data = obj.getJSONObject("data");
-            JSONObject caja = obj.getJSONObject("data").getJSONObject("caja");
-            JSONArray detalle = obj.getJSONObject("data").getJSONArray("detalle");
-
-            JSONObject moneda = ContaHook.getMoneda(caja.getString("key_empresa"), data.getString("key_moneda"));
-
-            double totalDescuento = 0;
-
-            JSONArray descuentosObj = data.optJSONArray("descuentos");
-            if (descuentosObj != null && descuentosObj.length() > 0) {
-                JSONObject descuentos = Descuento.getAll(caja.getString("key_empresa"));
-                for (int i = 0; i < descuentosObj.length(); i++) {
-                    String key_descuento = descuentosObj.getJSONObject(i).optString("key");
-                    if (!descuentos.has(key_descuento)) {
-                        throw new Exception("El descuento con key " + key_descuento + " no existe");
-                    }
-                    double porcentaje = descuentos.getJSONObject(key_descuento).getDouble("porcentaje");
-                    String key_cuenta_contable = descuentos.getJSONObject(key_descuento)
-                            .getString("key_cuenta_contable");
-                    totalDescuento += porcentaje;
-
-                    descuentosObj.getJSONObject(i).put("key_cuenta_contable", key_cuenta_contable);
-                    descuentosObj.getJSONObject(i).put("porcentaje", porcentaje);
-                }
-            }
-
-            if (totalDescuento > 100) {
-                throw new Exception("El descuento no puede ser mayor al 100%");
-            }
-
-            JSONObject compraVenta = new JSONObject();
-            compraVenta.put("key", data.getString("key_compra_venta"));
-            compraVenta.put("estado", 1);
-            compraVenta.put("fecha_on", SUtil.now());
-            compraVenta.put("key_usuario", data.getString("key_usuario"));
-            compraVenta.put("descripcion", data.getString("descripcion"));
-            compraVenta.put("observacion", data.optString("observacion"));
-            compraVenta.put("state", tipo == "compra" ? "comprado" : "vendido");
-            compraVenta.put("tipo", tipo);
-            compraVenta.put("tipo_pago", "contado");
-            compraVenta.put("key_proveedor", data.optString("key_proveedor"));
-            compraVenta.put("key_cliente", data.optString("key_cliente"));
-            compraVenta.put("key_empresa", caja.getString("key_empresa"));
-            compraVenta.put("key_sucursal", caja.getString("key_sucursal"));
-            compraVenta.put("key_caja", caja.getString("key"));
-            compraVenta.put("key_moneda", moneda.getString("key"));
-            compraVenta.put("tipo_cambio", moneda.getDouble("tipo_cambio"));
-            compraVenta.put("facturar", data.getBoolean("facturar"));
-
-            conectInstance.insertObject("compra_venta", compraVenta);
-
-            data.put("compra_venta", compraVenta);
-
-            JSONArray compraVentaDescuentos = new JSONArray();
-
-            if (descuentosObj != null) {
-                for (int i = 0; i < descuentosObj.length(); i++) {
-                    String key_descuento = descuentosObj.getJSONObject(i).optString("key");
-                    JSONObject descuento = new JSONObject();
-                    descuento.put("key", SUtil.uuid());
-                    descuento.put("monto", descuentosObj.getJSONObject(i).getDouble("monto"));
-                    descuento.put("estado", 1);
-                    descuento.put("fecha_on", SUtil.now());
-                    descuento.put("key_usuario", data.getString("key_usuario"));
-                    descuento.put("key_compra_venta", compraVenta.getString("key"));
-                    descuento.put("key_descuento", key_descuento);
-                    compraVentaDescuentos.put(descuento);
-                }
-            }
-
-            compraVenta.put("descuentos", descuentosObj);
-            conectInstance.insertArray("compra_venta_descuento", compraVentaDescuentos);
-
-            String obs = data.optString("observacion", null);
-            if (obs == null) {
-                obs = (tipo == "compra" ? "Compra" : "Venta");
-            }
-            data.put("observacion", obs);
-
-            double total_compra_venta = 0;
-
-            for (int i = 0; i < detalle.length(); i++) {
-                JSONObject item = detalle.getJSONObject(i);
-                if (!item.has("key_modelo") || item.isNull("key_modelo")) {
-                    throw new Exception("El campo key_modelo es requerido en el detalle");
-                }
-                if (!item.has("cantidad") || item.isNull("cantidad")) {
-                    throw new Exception("El campo cantidad es requerido en el detalle");
-                }
-                if (!item.has("precio_unitario") || item.isNull("precio_unitario")) {
-                    throw new Exception("El campo precio_unitario es requerido en el detalle");
-                }
-
-                total_compra_venta += item.getDouble("cantidad") * item.getDouble("precio_unitario_base")
-                        - item.optDouble("descuento", 0);
-
-                item.put("key", SUtil.uuid());
-                item.put("estado", 1);
-                item.put("fecha_on", SUtil.now());
-                item.put("key_compra_venta", compraVenta.getString("key"));
-
-            }
-
-            total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0; // Redondear a dos decimales
-            // total_compra_venta -= totalDescuento;
-            double descuento = total_compra_venta * (totalDescuento);
-             descuento = Math.round(descuento * 100.0) / 100.0;
-            // Redondear a dos decimales
-            compraVenta.put("descuento", descuento);
-            conectInstance.editObject("compra_venta", compraVenta);
-
-            total_compra_venta -= descuento;
-
-            total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0;
-
-            JSONObject tiposPago = data.getJSONObject("tipos_pago");
-            double montoBase = 0.0;
-
-            JSONArray cuotas = new JSONArray();
-
-            for (int i = 0; i < JSONObject.getNames(tiposPago).length; i++) {
-                JSONObject tipoPago = tiposPago.getJSONObject(JSONObject.getNames(tiposPago)[i]);
-
-                JSONObject cuota = new JSONObject();
-                cuota.put("key", SUtil.uuid());
-                cuota.put("estado", 1);
-                cuota.put("fecha_on", SUtil.now());
-                cuota.put("fecha", SUtil.now().substring(0, 10));
-                cuota.put("key_usuario", data.getString("key_usuario"));
-                cuota.put("key_compra_venta", compraVenta.getString("key"));
-                cuota.put("key_empresa_tipo_pago", tipoPago.getJSONObject("empresa_tipo_pago").getString("key"));
-                cuota.put("key_moneda", tipoPago.getJSONObject("empresa_tipo_pago").getString("key_moneda"));
-                cuota.put("codigo", cuotas.length() + "");
-                cuota.put("monto_base", tipoPago.getDouble("monto_nacional"));
-                montoBase += tipoPago.getDouble("monto_nacional");
-                cuota.put("monto", tipoPago.getDouble("monto_extranjera"));
-                cuota.put("capital", 0);
-                cuota.put("interes", 0);
-                cuota.put("estado", 1);
-
-                if (tipoPago.getJSONObject("empresa_tipo_pago").getString("key_tipo_pago").equals("credito")) {
-
-                    cuota.put("descripcion", "Cuota Credito");
-                    conectInstance.insertObject("cuota", cuota);
-
-                } else {
-                    cuota.put("descripcion", "Cuota Contado");
-                    conectInstance.insertObject("cuota", cuota);
-
-                    JSONObject cuotaAmortizacion = new JSONObject();
-                    cuotaAmortizacion.put("key", SUtil.uuid());
-                    cuotaAmortizacion.put("key_cuota", cuota.getString("key"));
-                    cuotaAmortizacion.put("estado", 1);
-                    cuotaAmortizacion.put("fecha_on", SUtil.now());
-                    cuotaAmortizacion.put("fecha", SUtil.now());
-                    cuotaAmortizacion.put("key_usuario", data.getString("key_usuario"));
-                    cuotaAmortizacion.put("key_compra_venta", compraVenta.getString("key"));
-                    cuotaAmortizacion.put("descripcion", "Cuota Amortizacion");
-                    cuotaAmortizacion.put("key_moneda",
-                            tipoPago.getJSONObject("empresa_tipo_pago").getString("key_moneda"));
-                    cuotaAmortizacion.put("key_empresa_tipo_pago",
-                            tipoPago.getJSONObject("empresa_tipo_pago").optString("key"));
-                    cuotaAmortizacion.put("monto", tipoPago.getDouble("monto_extranjera"));
-                    cuotaAmortizacion.put("monto_base", tipoPago.getDouble("monto_nacional"));
-                    cuotaAmortizacion.put("capital", 0);
-                    cuotaAmortizacion.put("interes", 0);
-                    conectInstance.insertObject("cuota_amortizacion", cuotaAmortizacion);
-
-                }
-                cuotas.put(cuota);
-            }
-            montoBase = Math.round(montoBase * 100.0) / 100.0;
-            if (total_compra_venta != montoBase) {
-                throw new Exception("El total de la " + tipo + " no coincide con el total pagado, " + total_compra_venta
-                        + " != " + montoBase);
-            }
-
-            data.put("cuotas", cuotas);
-
-            JSONObject send = new JSONObject();
-            send.put("component", "modelo");
-            if (tipo.equals("compra")) {
-                send.put("type", "compraCaja");
-            } else if (tipo.equals("venta")) {
-                send.put("type", "ventaCaja");
-            }
-            send.put("data", data);
-
-            JSONObject response = SocketCliente.sendSinc("inventario", send);
-            // System.out.println(response);
-
-            if (!response.getString("estado").equals("exito")) {
-                throw new Exception(response.optString("error", "Error al registrar la compra"));
-            }
-
-            data = response.getJSONObject("data");
-
-            conectInstance.insertArray("compra_venta_detalle", detalle);
-            conectInstance.commit();
-
-            obj.put("data", data);
-            obj.put("estado", "exito");
-        } catch (Exception e) {
-            e.printStackTrace();
-            obj.put("estado", "error");
-            obj.put("error", e.getMessage());
-            conectInstance.rollback();
-        } finally {
-            if (conectInstance != null) {
-                conectInstance.close();
-            }
         }
     }
 
@@ -585,6 +211,19 @@ public class CompraVenta {
     public static void getByKey(JSONObject obj, SSSessionAbstract session) {
         try {
             String consulta = "select get_by_key('" + COMPONENT + "', '" + obj.getString("key") + "') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void getJson(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_compra_venta_json('" + obj.getString("key") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
