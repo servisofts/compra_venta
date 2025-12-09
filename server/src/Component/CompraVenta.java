@@ -89,8 +89,113 @@ public class CompraVenta {
             case "ventaCaja":
                 new CompraVentaCaja(obj, session, "venta");
                 break;
+            case "factura":
+                factura(obj, session);
+                break;
+
         }
     }
+
+ 
+    public static void factura(JSONObject obj, SSSessionAbstract session) {
+    try {
+        // --- Cabecera ---
+        String consult001 = "select get_by_key('" + COMPONENT + "', '" +
+                obj.getString("key") + "') as json";
+        JSONObject cabecera = SPGConect.ejecutarConsultaObject(consult001);
+
+        // --- Detalles ---
+        String consult002 = "select get_all('compra_venta_detalle', 'key_compra_venta', '" +
+                obj.getString("key") + "') as json";
+        JSONObject detalle_compra = SPGConect.ejecutarConsultaObject(consult002);
+
+        JSONArray detalleArray = new JSONArray();
+        double totalFactura = 0.0;
+
+        for (String keyDetalle : detalle_compra.keySet()) {
+            JSONObject detalle = detalle_compra.getJSONObject(keyDetalle);
+
+            String descripcion = detalle.optString("descripcion");
+            double precioUnitario = detalle.optDouble("precio_unitario");
+            int cantidad = detalle.optInt("cantidad");
+            String keyModelo = detalle.optString("key_modelo");
+
+            double subTotal = cantidad * precioUnitario;
+            totalFactura += subTotal;
+
+            JSONObject item = new JSONObject();
+            item.put("codigoProducto", keyModelo);
+            item.put("codigoProductoSin", "");
+            item.put("actividadEconomica", "");
+            item.put("cantidad", cantidad);
+            item.put("unidadMedida", "1");
+            item.put("descripcion", descripcion);
+            item.put("precioUnitario", precioUnitario);
+            item.put("montoDescuento", "0");
+            item.put("subTotal", subTotal);
+            item.put("numeroImei", "");
+            item.put("numeroSerie", "");
+
+            detalleArray.put(item);
+        }
+
+        // --- Data de la factura ---
+        JSONObject data = new JSONObject();
+        data.put("nitEmisor", "818134019");
+        data.put("razonSocialEmisor", "RUDDY");
+        data.put("numeroFactura", "01");
+        data.put("cuf", "");
+        data.put("cufd", "");
+        data.put("codigoSucursal", cabecera.get("key_sucursal"));
+        data.put("codigoPuntoVenta", "0");
+        data.put("municipio", "santa cruz");
+        data.put("direccion", "c/ Diego de Bazan s/n comercial minorista, artesanos");
+        data.put("telefono", "+591 70838928");
+        data.put("fechaEmision", "2025-12-08 23:43:55");
+        data.put("nombreRazonSocial", "Servisofts SRL");
+        data.put("codigoTipoDocumentoIdentidad", "5");
+        data.put("numeroDocumento", "454561021");
+        data.put("complemento", "");
+        data.put("codigoCliente", "1");
+        data.put("codigoMetodoPago", "1");
+        data.put("numeroTarjeta", "");
+        data.put("montoTotal", totalFactura);
+        data.put("montoTotalSujetoIva", totalFactura);
+        data.put("codigoMoneda", "1");
+        data.put("tipoCambio", cabecera.get("tipo_cambio"));
+        data.put("montoTotalMoneda", "0");
+        data.put("montoGiftCard", "0");
+        data.put("descuentoAdicional", "0");
+        data.put("codigoExcepcion", "1");
+        data.put("cafc", "");
+        data.put("leyenda", "Ley N° 453: Puedes acceder a la reclamación cuando tus derechos han sido vulnerados.");
+        data.put("usuario", "Usuario");
+        data.put("codigoDocumentoSector", "1");
+        data.put("detalle", detalleArray); // agregamos la lista de detalles
+
+        // --- Respuesta final ---
+        JSONObject result = new JSONObject();
+        result.put("service", "facturacion");
+        result.put("component", "factura");
+        result.put("type", "emitir");
+        result.put("data", data);
+        result.put("ambiente", 2);
+        result.put("estado", "cargando");
+        result.put("enviar_siat", true);
+        result.put("key_usuario", cabecera.get("key_usuario"));
+        result.put("key_empresa", "f894ea35-5ad1-4b61-a2d0-9294965be169");
+        result.put("_ssocket_promise", "110f3e24-78b0-47fe-8db6-93043e2c164e");
+
+        obj.put("data", result);
+        obj.put("estado", "exito");
+
+    } catch (Exception e) {
+        obj.put("estado", "error");
+        obj.put("error", e.getMessage());
+        e.printStackTrace();
+    }
+}
+
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
