@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
 import Component.CompraVenta_Components.AmortizarCuotas;
 import Component.CompraVenta_Components.AnularVenta;
 import Component.CompraVenta_Components.CompraVentaCaja;
@@ -20,6 +19,8 @@ import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 public class CompraVenta {
@@ -90,7 +91,7 @@ public class CompraVenta {
                 new CompraVentaCaja(obj, session, "venta");
                 break;
             case "factura":
-                factura(obj, session);
+                generarFacturaParaVenta(obj, session);
                 break;
 
         }
@@ -106,95 +107,134 @@ public class CompraVenta {
         return resp;
     }
 
-    public static void factura(JSONObject obj, SSSessionAbstract session) {
+    public static void generarFacturaParaVenta(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consult001 = "select get_by_key('" + COMPONENT + "', '" + obj.getString("key") + "') as json";
-            JSONObject cabecera = SPGConect.ejecutarConsultaObject(consult001);
+            // ===============================================================
+            // 1. OBTENER DATOS PRINCIPALES
+            // ===============================================================
+            String keyFactura = obj.getString("key");
 
-            String consult002 = "select get_all('compra_venta_detalle', 'key_compra_venta', '" + obj.getString("key")
-                    + "') as json";
-            JSONObject detalle_compra = SPGConect.ejecutarConsultaObject(consult002);
+            JSONObject facturaCabecera = SPGConect.ejecutarConsultaObject("select get_by_key('" + COMPONENT + "', '" + keyFactura + "') as json");
+
+            JSONObject facturaDetalle = SPGConect.ejecutarConsultaObject( "select get_all('compra_venta_detalle', 'key_compra_venta', '" + keyFactura + "') as json");
+
+            JSONObject caja = getCaja(facturaCabecera.getString("key_caja"));
+            JSONObject puntoVenta = getPuntoVenta(caja.getString("key_punto_venta"));
+            JSONObject sucursal = getSucursal(facturaCabecera.getString("key_sucursal"));
+
+            String fechaEmision = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+            // ===============================================================
+            // 2. DATOS FIJOS / PREDETERMINADOS
+            // ===============================================================
+            String LEYENDA = "Ley N° 453: Puedes acceder a la reclamación cuando tus derechos han sido vulnerados.";
+            System.out.println(LEYENDA);
+
+            final String TIPO_DOC_CLIENTE = "5"; // CI, DNI, PASAPORTE, ETC
+            final String NIT_EMISOR = "818134019";
+            final String RAZON_SOCIAL_EMISOR = "POLLOS SOLAR";
 
             JSONArray detalleArray = new JSONArray();
-            double totalFactura = 0.0;
-            JSONArray arrKeyModelo = new JSONArray();
+            JSONArray keysModelo = new JSONArray();
+            double montoTotalFactura = 0.0;
 
-            for (String keyDetalle : detalle_compra.keySet()) {
-                JSONObject detalle = detalle_compra.getJSONObject(keyDetalle);
-                String descripcion = detalle.optString("descripcion");
-                double precioUnitario = detalle.optDouble("precio_unitario");
-                int cantidad = detalle.optInt("cantidad");
-                String keyModelo = detalle.optString("key_modelo");
-                double subTotal = cantidad * precioUnitario;
-                totalFactura += subTotal;
+            // ===============================================================
+            // 3. PROCESAR DETALLES – CALCULOS BASE
+            // ===============================================================
+            for (String keyDetalle : facturaDetalle.keySet()) {
+
+                JSONObject d = facturaDetalle.getJSONObject(keyDetalle);
+
+                String descripcion = d.optString("descripcion");
+                double precioUnit = d.optDouble("precio_unitario");
+                int cantidad = d.optInt("cantidad");
+                String keyModelo = d.optString("key_modelo");
+
+                double subtotal = precioUnit * cantidad;
+                montoTotalFactura += subtotal;
+                subtotal = Math.round(subtotal * 100.0) / 100.0; // Redondear a dos decimales
+
                 JSONObject item = new JSONObject();
                 item.put("key_modelo", keyModelo);
                 item.put("codigoProducto", "");
-                item.put("codigoProductoSin", ""); // Inicializamos vacío
+                item.put("codigoProductoSin", "");
                 item.put("unidadMedida", "");
                 item.put("descripcion", descripcion);
-                item.put("precioUnitario", precioUnitario);
-                item.put("montoDescuento", "0");
+                item.put("precioUnitario", precioUnit);
+                item.put("montoDescuento", 0);
                 item.put("cantidad", cantidad);
-                item.put("subTotal", subTotal);
+                item.put("subTotal", subtotal);
                 item.put("actividadEconomica", "");
                 item.put("numeroImei", "");
                 item.put("numeroSerie", "");
-                detalleArray.put(item);
-                arrKeyModelo.put(keyModelo);
-            }
 
-            JSONObject respuesta = api_tipo_producto(arrKeyModelo);
-            JSONArray dataArray = respuesta.getJSONArray("data");
+                detalleArray.put(item);
+                keysModelo.put(keyModelo);
+            }
+            montoTotalFactura = Math.round(montoTotalFactura * 100.0) / 100.0; // Redondear a dos decimales
+
+            // ===============================================================
+            // 4. COMPLETAR DETALLES CON DATOS DE FACTURACION
+            // ===============================================================
+            JSONObject respTipoProducto = api_tipo_producto(keysModelo);
+            JSONArray tiposProducto = respTipoProducto.getJSONArray("data");
+
             for (int i = 0; i < detalleArray.length(); i++) {
                 JSONObject item = detalleArray.getJSONObject(i);
-                for (int j = 0; j < dataArray.length(); j++) {
-                    JSONObject dataItem = dataArray.getJSONObject(j);
-                    if (dataItem.getString("key").equals(item.getString("key_modelo"))) {
-                        item.put("codigoProducto", dataItem.getString("codigo_facturacion"));
-                        item.put("codigoProductoSin", dataItem.getString("codigo_facturacion"));
-                        item.put("unidadMedida", dataItem.getString("unidad_medida_facturacion"));
-                        // item.put("actividadEconomica", "888");
+                String modelo = item.getString("key_modelo");
+
+                for (int j = 0; j < tiposProducto.length(); j++) {
+                    JSONObject info = tiposProducto.getJSONObject(j);
+
+                    if (info.getString("key").equals(modelo)) {
+                        item.put("codigoProducto", info.getString("codigo_facturacion"));
+                        item.put("codigoProductoSin", info.getString("codigo_facturacion"));
+                        item.put("unidadMedida", info.getString("unidad_medida_facturacion"));
                         break;
                     }
                 }
                 item.remove("key_modelo");
             }
 
-            // Construimos el objeto final de facturación
+            // ===============================================================
+            // 5. ARMAR OBJETO DE FACTURACIÓN (SIAT)
+            // ===============================================================
             JSONObject data = new JSONObject();
-            data.put("nitEmisor", "818134019");
-            data.put("razonSocialEmisor", "RUDDY");
+            data.put("nitEmisor", NIT_EMISOR);
+            data.put("razonSocialEmisor", RAZON_SOCIAL_EMISOR);
             data.put("numeroFactura", "01");
             data.put("cuf", "");
             data.put("cufd", "");
-            data.put("codigoSucursal", cabecera.get("key_sucursal"));
-            data.put("codigoPuntoVenta", "0");
-            data.put("municipio", "santa cruz");
-            data.put("direccion", "c/ Diego de Bazan s/n comercial minorista, artesanos");
-            data.put("telefono", "+591 70838928");
-            data.put("fechaEmision", "2025-12-08 23:43:55");
+            data.put("codigoSucursal", sucursal.get("codigo_facturacion"));
+            data.put("codigoPuntoVenta", puntoVenta.get("descripcion"));
+            data.put("municipio", sucursal.get("municipio"));
+            data.put("direccion", sucursal.get("direccion"));
+            data.put("telefono", sucursal.get("telefono"));
+            data.put("fechaEmision", fechaEmision);
             data.put("nombreRazonSocial", "Servisofts SRL");
-            data.put("codigoTipoDocumentoIdentidad", "5");
+            data.put("codigoTipoDocumentoIdentidad", TIPO_DOC_CLIENTE);
             data.put("numeroDocumento", "454561021");
             data.put("complemento", "");
             data.put("codigoCliente", "1");
             data.put("codigoMetodoPago", "1");
             data.put("numeroTarjeta", "");
-            data.put("montoTotal", totalFactura);
-            data.put("montoTotalSujetoIva", totalFactura);
+            data.put("montoTotal", montoTotalFactura);
+            data.put("montoTotalSujetoIva", montoTotalFactura);
             data.put("codigoMoneda", "1");
-            data.put("tipoCambio", cabecera.get("tipo_cambio"));
-            data.put("montoTotalMoneda", totalFactura);
-            data.put("montoGiftCard", "0");
-            data.put("descuentoAdicional", "0");
+            data.put("tipoCambio", facturaCabecera.get("tipo_cambio"));
+            data.put("montoTotalMoneda", montoTotalFactura);
+            data.put("montoGiftCard", 0);
+            data.put("descuentoAdicional", 0);
             data.put("codigoExcepcion", "1");
             data.put("cafc", "");
-            data.put("leyenda", "Ley N° 453: Puedes acceder a la reclamación cuando tus derechos han sido vulnerados.");
+            data.put("leyenda", LEYENDA);
             data.put("usuario", "Usuario");
             data.put("codigoDocumentoSector", "1");
             data.put("detalle", detalleArray);
 
+            // ===============================================================
+            // 6. RESPUESTA FINAL
+            // ===============================================================
             JSONObject result = new JSONObject();
             result.put("service", "facturacion");
             result.put("component", "factura");
@@ -203,7 +243,7 @@ public class CompraVenta {
             result.put("ambiente", 2);
             result.put("estado", "cargando");
             result.put("enviar_siat", true);
-            result.put("key_usuario", cabecera.get("key_usuario"));
+            result.put("key_usuario", facturaCabecera.get("key_usuario"));
             result.put("key_empresa", "f894ea35-5ad1-4b61-a2d0-9294965be169");
             result.put("_ssocket_promise", "110f3e24-78b0-47fe-8db6-93043e2c164e");
 
@@ -1210,8 +1250,8 @@ public class CompraVenta {
             JSONObject caja = getCaja(data.getString("key_caja"));
             JSONObject punto_venta = getPuntoVenta(caja.getString("key_punto_venta"));
             JSONObject sucursal = getSucursal(punto_venta.getString("key_sucursal"));
-
             JSONObject monedas = ContaHook.getMonedas(sucursal.getString("key_empresa"));
+            // alvaro
             String keyMoneda = data.getString("key_moneda");
             JSONObject monedaCaja = monedas.getJSONObject(keyMoneda);
             double tipo_cambioCaja = monedaCaja.getDouble("tipo_cambio");
@@ -1473,6 +1513,15 @@ public class CompraVenta {
         JSONObject resp = SocketCliente.sendSinc("caja", send);
         return resp.getJSONObject("data");
     }
+
+    // public static JSONObject generarLeyenda() {
+    // JSONObject send = new JSONObject();
+    // send.put("component", "caja");
+    // send.put("type", "getByKey");
+    // send.put("key", key_caja);
+    // JSONObject resp = SocketCliente.sendSinc("caja", send);
+    // return resp.getJSONObject("data");
+    // }
 
     public static JSONObject getPuntoVenta(String key_punto_venta) {
         JSONObject send = new JSONObject();
