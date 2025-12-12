@@ -67,6 +67,11 @@ public class CompraVentaCaja {
             compraVenta.put("tipo_cambio", moneda.getDouble("tipo_cambio"));
             compraVenta.put("facturar", data.getBoolean("facturar"));
 
+            JSONObject data_extra = new JSONObject();
+            data_extra.put("razon_social", data.optJSONObject("cliente").optString("razon_social"));
+            data_extra.put("nit", data.optJSONObject("cliente").optString("nit"));
+            compraVenta.put("data", data_extra);
+
             conectInstance.insertObject("compra_venta", compraVenta);
 
             data.put("compra_venta", compraVenta);
