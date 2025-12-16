@@ -22,6 +22,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.Random;
 
 public class CompraVenta {
     public static final String COMPONENT = "compra_venta";
@@ -107,6 +108,36 @@ public class CompraVenta {
         return resp;
     }
 
+    public static String generar_leyenda(String key_empresa, String key_usuario) throws Exception {
+
+        JSONObject send = new JSONObject();
+        send.put("ambiente", "2");
+        send.put("component", "siat");
+        send.put("estado", "cargando");
+        send.put("key_empresa", key_empresa);
+        send.put("key_usuario", key_usuario);
+        send.put("parametrica", "leyendasFactura");
+        send.put("type", "getParametrica");
+
+        JSONObject resp = SocketCliente.sendSinc("facturacion", send);
+
+        // Validar respuesta
+        if (!resp.has("data")) {
+            throw new Exception("No se encontraron leyendas en la respuesta SIAT");
+        }
+
+        JSONArray data = resp.getJSONArray("data");
+        if (data.length() == 0) {
+            throw new Exception("Lista de leyendas vacía");
+        }
+
+        // Elegir leyenda aleatoria
+        Random random = new Random();
+        JSONObject leyendaObj = data.getJSONObject(random.nextInt(data.length()));
+
+        return leyendaObj.getString("descripcionLeyenda");
+    }
+
     public static void emitirFacturaVenta(JSONObject venta, SSSessionAbstract session) {
         try {
             // ===============================================================
@@ -117,6 +148,8 @@ public class CompraVenta {
             JSONObject compraVenta = getByKey(keyVenta);
             JSONObject compraVentaDetalle = CompraVentaDetalle.getAll(keyVenta);
 
+            String LEYENDA = generar_leyenda(compraVenta.getString("key_empresa"), compraVenta.getString("key_usuario"));
+ 
             if (compraVenta == null || compraVenta.length() == 0)
                 throw new Exception("No se encontró la venta");
 
@@ -235,10 +268,10 @@ public class CompraVenta {
             // ===============================================================
             // 8. CONFIGURACIONES FIJAS
             // ===============================================================
-            final String LEYENDA = "Ley N° 453: Tienes derecho a recibir información sobre las características y contenidos de los productos que consumes.";
+            // final String LEYENDA = "Ley N° 453: Tienes derecho a recibir información sobre las características y contenidos de los productos que consumes.";
             final String ACTIVIDAD_ECONOMICA = "475200";
             final String TIPO_DOC_CLIENTE = "1";
-            final String NUMERO_FACTURA_DEFAULT = "100";
+            final String NUMERO_FACTURA_DEFAULT = "0";
 
             String fechaEmision = LocalDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
