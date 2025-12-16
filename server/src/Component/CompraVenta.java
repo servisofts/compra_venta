@@ -114,85 +114,174 @@ public class CompraVenta {
             // ===============================================================
             String keyVenta = venta.getString("key");
 
-            JSONObject _compra_venta = getByKey(keyVenta);
-            JSONObject _compra_venta_detalle = CompraVentaDetalle.getAll(keyVenta);
-            JSONObject caja = getCaja(_compra_venta.getString("key_caja"));
-            JSONObject _puntoVenta = getPuntoVenta(caja.getString("key_punto_venta"));
-            JSONObject _sucursal = getSucursal(_compra_venta.getString("key_sucursal"));
-            JSONObject _empresa = getEmpresa(_compra_venta.getString("key_empresa"));
+            JSONObject compraVenta = getByKey(keyVenta);
+            JSONObject compraVentaDetalle = CompraVentaDetalle.getAll(keyVenta);
 
-            String fechaEmision = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            if (compraVenta == null || compraVenta.length() == 0)
+                throw new Exception("No se encontró la venta");
 
-            JSONObject cliente = null;
-            Object _cliente = _compra_venta.opt("cliente");
-            if (_cliente instanceof JSONObject) {
-                cliente = (JSONObject) _cliente;
-            }
+            if (compraVentaDetalle == null || compraVentaDetalle.length() == 0)
+                throw new Exception("La factura no tiene detalles de productos");
 
-            if (cliente == null || cliente.length() == 0) {
-                throw new Exception("🥼 No se encontró información del cliente en la factura");
-            }
+            String key_caja = compraVenta.optString("key_caja", "").trim();
 
-            String numeroDocumento = cliente.optString("nit", "");
-            String razonSocialCliente = cliente.optString("razon_social", "");
-            if (numeroDocumento.isEmpty() || razonSocialCliente.isEmpty()) {
-                throw new Exception("🥼  Cliente inválido: faltan nit o razon social");
-            }
+            if (key_caja.isEmpty())
+                throw new Exception("No se encontró la key_caja");
 
-            if (_empresa == null)
+            JSONObject caja = getCaja(key_caja);
+            if (caja == null || caja.length() == 0)
+                throw new Exception("No se encontró la caja");
+
+            // ===============================================================
+            // 2. VALIDAR PUNTO DE VENTA
+            // ===============================================================
+            String keyPuntoVenta = caja.optString("key_punto_venta", "").trim();
+
+            if (keyPuntoVenta.isEmpty())
+                throw new Exception("La caja no tiene punto de venta asignado");
+
+            JSONObject puntoVenta = getPuntoVenta(keyPuntoVenta);
+            if (puntoVenta == null || puntoVenta.length() == 0)
+                throw new Exception("El punto de venta no existe");
+
+            // ===============================================================
+            String puntoVenta_codigo_facturacion = puntoVenta.optString("codigo_facturacion", "").trim();
+
+            if (puntoVenta_codigo_facturacion.isEmpty())
+                throw new Exception("puntoVenta no hay codigo_facturacion");
+
+            // puntoVenta.get("codigo_facturacion")
+
+            // ===============================================================
+            // 3. VALIDAR SUCURSAL
+            // ===============================================================
+            String keySucursal = compraVenta.optString("key_sucursal", "").trim();
+
+            if (keySucursal.isEmpty())
+                throw new Exception("keySucursal");
+
+            JSONObject sucursal = getSucursal(keySucursal);
+            if (sucursal == null || sucursal.length() == 0)
+                throw new Exception("La sucursal no existe");
+
+            if (sucursal.optString("codigo_facturacion", "").trim().isEmpty())
+                throw new Exception("La sucursal no tiene código de facturación");
+
+            if (sucursal.optString("municipio", "").trim().isEmpty())
+                throw new Exception("La sucursal no tiene municipio");
+
+            if (sucursal.optString("direccion", "").trim().isEmpty())
+                throw new Exception("La sucursal no tiene dirección");
+
+            String telefonoSucursal = sucursal.optString("telefono", "").trim();
+            if (telefonoSucursal.length() <= 5)
+                throw new Exception("El teléfono de la sucursal no es válido");
+
+            // ===============================================================
+            // 4. VALIDAR EMPRESA
+            // ===============================================================
+            String keyEmpresa = compraVenta.optString("key_empresa", "").trim();
+
+            if (keyEmpresa.isEmpty())
+                throw new Exception("La venta no tiene empresa asignada");
+
+            JSONObject empresa = getEmpresa(keyEmpresa);
+
+            if (empresa == null || empresa.length() == 0)
                 throw new Exception("No se encontró la empresa");
-            if (_empresa.optString("nit", "").trim().isEmpty())
+
+            if (empresa.optString("nit", "").trim().isEmpty())
                 throw new Exception("La empresa no tiene NIT");
-            if (_empresa.optString("razon_social", "").trim().isEmpty())
+
+            if (empresa.optString("razon_social", "").trim().isEmpty())
                 throw new Exception("La empresa no tiene razón social");
 
             // ===============================================================
-            // 2. CONFIGURACIONES FIJAS
+            // 5. VALIDAR USUARIO
+            // ===============================================================
+            if (compraVenta.optString("key_usuario", "").trim().isEmpty())
+                throw new Exception("No se encontró el usuario que registra la factura");
+
+            // ===============================================================
+            // 6. VALIDAR CLIENTE
+            // ===============================================================
+            JSONObject cliente = compraVenta.optJSONObject("cliente");
+
+            if (cliente == null || cliente.length() == 0)
+                throw new Exception("No se encontró información del cliente");
+
+            String numeroDocumento = cliente.optString("nit", "").trim();
+            String razonSocialCliente = cliente.optString("razon_social", "").trim();
+
+            if (numeroDocumento.isEmpty() || razonSocialCliente.isEmpty())
+                throw new Exception("Cliente inválido: faltan NIT o razón social");
+
+            // ===============================================================
+            // 7. VALIDAR DETALLES DE PRODUCTOS
+            // ===============================================================
+            for (String keyDetalle : compraVentaDetalle.keySet()) {
+                JSONObject d = compraVentaDetalle.getJSONObject(keyDetalle);
+
+                if (d.optDouble("precio_unitario", 0) <= 0)
+                    throw new Exception("Producto sin precio válido: " + keyDetalle);
+
+                if (d.optInt("cantidad", 0) <= 0)
+                    throw new Exception("Producto sin cantidad válida: " + keyDetalle);
+
+                if (d.optString("key_modelo", "").trim().isEmpty())
+                    throw new Exception("Producto sin key_modelo: " + keyDetalle);
+            }
+
+            // ===============================================================
+            // 8. CONFIGURACIONES FIJAS
             // ===============================================================
             final String LEYENDA = "Ley N° 453: Tienes derecho a recibir información sobre las características y contenidos de los productos que consumes.";
             final String ACTIVIDAD_ECONOMICA = "475200";
-            final String TIPO_DOC_CLIENTE = "1"; // 1 = CI, 5 = NIT empresa
+            final String TIPO_DOC_CLIENTE = "1";
             final String NUMERO_FACTURA_DEFAULT = "100";
+
+            String fechaEmision = LocalDateTime.now()
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
             JSONArray detalleFactura = new JSONArray();
             JSONArray keysModelos = new JSONArray();
-            double montoTotalFactura = 0.0;
+            double montoTotalFactura = 0;
 
             // ===============================================================
-            // 3. PROCESAR DETALLES DE LA VENTA
+            // 9. ARMAR DETALLE FACTURA
             // ===============================================================
-            for (String keyDetalle : _compra_venta_detalle.keySet()) {
-                JSONObject detalle = _compra_venta_detalle.getJSONObject(keyDetalle);
+            for (String keyDetalle : compraVentaDetalle.keySet()) {
+                JSONObject d = compraVentaDetalle.getJSONObject(keyDetalle);
 
-                String descripcion = detalle.optString("descripcion");
-                double precioUnitario = detalle.optDouble("precio_unitario");
-                int cantidad = detalle.optInt("cantidad");
-                String keyModelo = detalle.optString("key_modelo");
+                double precio = d.getDouble("precio_unitario");
+                int cantidad = d.getInt("cantidad");
+                String keyModelo = d.getString("key_modelo");
 
-                double subtotal = Math.round(precioUnitario * cantidad * 100.0) / 100.0;
+                double subtotal = Math.round(precio * cantidad * 100.0) / 100.0;
                 montoTotalFactura += subtotal;
 
-                JSONObject itemFactura = new JSONObject();
-                itemFactura.put("key_modelo", keyModelo);
-                itemFactura.put("descripcion", descripcion);
-                itemFactura.put("precioUnitario", precioUnitario);
-                itemFactura.put("cantidad", cantidad);
-                itemFactura.put("subTotal", subtotal);
-                itemFactura.put("montoDescuento", 0);
-                itemFactura.put("unidadMedida", "");
-                itemFactura.put("codigoProducto", "");
-                itemFactura.put("codigoProductoSin", "");
-                itemFactura.put("actividadEconomica", ACTIVIDAD_ECONOMICA);
-                itemFactura.put("numeroImei", "");
-                itemFactura.put("numeroSerie", "");
+                JSONObject item = new JSONObject();
+                item.put("descripcion", d.optString("descripcion"));
+                item.put("precioUnitario", precio);
+                item.put("cantidad", cantidad);
+                item.put("subTotal", subtotal);
+                item.put("montoDescuento", 0);
+                item.put("unidadMedida", "");
+                item.put("codigoProducto", "");
+                item.put("codigoProductoSin", "");
+                item.put("actividadEconomica", ACTIVIDAD_ECONOMICA);
+                item.put("numeroImei", "");
+                item.put("numeroSerie", "");
+                item.put("key_modelo", keyModelo);
 
-                detalleFactura.put(itemFactura);
+                detalleFactura.put(item);
                 keysModelos.put(keyModelo);
             }
+
             montoTotalFactura = Math.round(montoTotalFactura * 100.0) / 100.0;
 
             // ===============================================================
-            // 4. COMPLETAR DETALLES CON CÓDIGOS DE FACTURACIÓN
+            // 10. COMPLETAR CÓDIGOS DE FACTURACIÓN
             // ===============================================================
             JSONObject respTipoProducto = api_tipo_producto(keysModelos);
             JSONArray tiposProducto = respTipoProducto.getJSONArray("data");
@@ -204,9 +293,8 @@ public class CompraVenta {
                 for (int j = 0; j < tiposProducto.length(); j++) {
                     JSONObject info = tiposProducto.getJSONObject(j);
                     if (info.getString("key").equals(modelo)) {
-                        String codigoFacturacion = info.getString("codigo_facturacion");
-                        item.put("codigoProducto", codigoFacturacion);
-                        item.put("codigoProductoSin", codigoFacturacion);
+                        item.put("codigoProducto", info.getString("codigo_facturacion"));
+                        item.put("codigoProductoSin", info.getString("codigo_facturacion"));
                         item.put("unidadMedida", info.getString("unidad_medida_facturacion"));
                         break;
                     }
@@ -215,43 +303,47 @@ public class CompraVenta {
             }
 
             // ===============================================================
-            // 5. ARMAR OBJETO DE FACTURACIÓN
+            // 11. ARMAR FACTURA
             // ===============================================================
             JSONObject factura = new JSONObject();
-            factura.put("nitEmisor", _empresa.get("nit"));
-            factura.put("razonSocialEmisor", _empresa.get("razon_social"));
+            factura.put("nitEmisor", empresa.get("nit"));
+            factura.put("razonSocialEmisor", empresa.get("razon_social"));
             factura.put("numeroFactura", NUMERO_FACTURA_DEFAULT);
             factura.put("cuf", "");
-            factura.put("cufd", "");
-            factura.put("codigoSucursal", _sucursal.get("codigo_facturacion"));
-            factura.put("codigoPuntoVenta", _puntoVenta.get("descripcion"));
-            factura.put("municipio", _sucursal.get("municipio"));
-            factura.put("direccion", _sucursal.get("direccion"));
-            factura.put("telefono", _sucursal.get("telefono"));
+
+            factura.put("codigoSucursal", sucursal.get("codigo_facturacion"));
+            factura.put("codigoPuntoVenta", puntoVenta.get("codigo_facturacion"));
+            factura.put("municipio", sucursal.get("municipio"));
+            factura.put("direccion", sucursal.get("direccion"));
+            factura.put("telefono", telefonoSucursal);
+
             factura.put("fechaEmision", fechaEmision);
+
             factura.put("numeroDocumento", numeroDocumento);
             factura.put("nombreRazonSocial", razonSocialCliente);
             factura.put("codigoTipoDocumentoIdentidad", TIPO_DOC_CLIENTE);
+
             factura.put("complemento", "");
             factura.put("codigoCliente", "0");
-            factura.put("codigoMetodoPago", "1");
             factura.put("numeroTarjeta", "");
+            factura.put("montoGiftCard", 0);
+            factura.put("codigoExcepcion", "1");
+            factura.put("cafc", "");
+
+            factura.put("codigoMetodoPago", "1");
             factura.put("montoTotal", montoTotalFactura);
             factura.put("montoTotalSujetoIva", montoTotalFactura);
             factura.put("codigoMoneda", "1");
-            factura.put("tipoCambio", _compra_venta.get("tipo_cambio"));
+            factura.put("tipoCambio", compraVenta.get("tipo_cambio"));
             factura.put("montoTotalMoneda", montoTotalFactura);
-            factura.put("montoGiftCard", 0);
             factura.put("descuentoAdicional", 0);
-            factura.put("codigoExcepcion", "1");
-            factura.put("cafc", "");
             factura.put("leyenda", LEYENDA);
-            factura.put("usuario", _compra_venta.get("key_usuario"));
+            factura.put("usuario", compraVenta.get("key_usuario"));
             factura.put("codigoDocumentoSector", "1");
             factura.put("detalle", detalleFactura);
 
             // ===============================================================
-            // 6. ENVÍO Y RESPUESTA
+            // 12. ENVÍO
             // ===============================================================
             JSONObject request = new JSONObject();
             request.put("component", "factura");
@@ -259,10 +351,10 @@ public class CompraVenta {
             request.put("data", factura);
             request.put("ambiente", 2);
             request.put("estado", "cargando");
+
             request.put("enviar_siat", true);
-            request.put("key_usuario", _compra_venta.get("key_usuario"));
-            request.put("key_empresa", _compra_venta.get("key_empresa"));
-            request.put("_ssocket_promise", "110f3e24-78b0-47fe-8db6-93043e2c164e");
+            request.put("key_usuario", compraVenta.get("key_usuario"));
+            request.put("key_empresa", compraVenta.get("key_empresa"));
 
             JSONObject response = SocketCliente.sendSinc("facturacion", request);
 
