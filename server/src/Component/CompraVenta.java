@@ -17,6 +17,7 @@ import Servisofts.SPGConect;
 import Servisofts.SUtil;
 import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
+import Util.InventarioHook;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -1458,7 +1459,7 @@ public class CompraVenta {
 
             double total_venta = 0;
 
-            // detalle
+
             JSONArray detalle = data.getJSONArray("detalle");
             for (int i = 0; i < detalle.length(); i++) {
                 JSONObject item = detalle.getJSONObject(i);
@@ -1477,6 +1478,7 @@ public class CompraVenta {
                 item.put("estado", 1);
                 item.put("fecha_on", SUtil.now());
                 item.put("key_compra_venta", venta.getString("key"));
+                
             }
 
             total_venta = Math.round(total_venta * 100.0) / 100.0; // Redondear a dos decimales

@@ -8,6 +8,7 @@ import Contabilidad.ContaHook;
 import Servisofts.SUtil;
 import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
+import Util.InventarioHook;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 
 public class CompraVentaCaja {
@@ -105,6 +106,7 @@ public class CompraVentaCaja {
             data.put("observacion", obs);
 
             double total_compra_venta = 0;
+            JSONArray comisiones = new JSONArray();
 
             for (int i = 0; i < detalle.length(); i++) {
                 JSONObject item = detalle.getJSONObject(i);
@@ -126,7 +128,30 @@ public class CompraVentaCaja {
                 item.put("fecha_on", SUtil.now());
                 item.put("key_compra_venta", compraVenta.getString("key"));
 
+                if (item.has("key_modelo_cliente") && !item.isNull("key_modelo_cliente")) {
+
+                    JSONObject modeloCliente = InventarioHook.getModeloCliente(item.getString("key_modelo_cliente"));
+
+                    if(modeloCliente == null){
+                        throw new Exception("El modelo cliente con key " + item.getString("key_modelo_cliente") + " no existe");
+                    }
+
+                    JSONObject comision = new JSONObject();
+                    comision.put("key", SUtil.uuid());
+                    comision.put("estado", 1);
+                    comision.put("fecha_on", SUtil.now());
+                    comision.put("key_usuario", data.getString("key_usuario"));
+                    comision.put("key_compra_venta_detalle", item.getString("key"));
+                    comision.put("key_modelo_cliente", item.getString("key_modelo_cliente"));
+                    comision.put("descripcion", "Comisión por venta");
+                    comision.put("monto", modeloCliente.optDouble("comision",0)*item.getDouble("cantidad"));
+                    comision.put("key_cuenta_contable", modeloCliente.optString("key_cuenta_contable"));
+                    comisiones.put(comision);
+                }
+
             }
+
+           
 
             total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0; // Redondear a dos decimales
             // total_compra_venta -= totalDescuento;
@@ -222,6 +247,7 @@ public class CompraVentaCaja {
             data = response.getJSONObject("data");
 
             conectInstance.insertArray("compra_venta_detalle", detalle);
+            conectInstance.insertArray("comision", comisiones);
             conectInstance.commit();
 
             obj.put("data", data);

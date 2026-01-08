@@ -27,6 +27,7 @@ public class Manejador {
             case Multa.COMPONENT: Multa.onMessage(obj, session); break;
             case Descuento.COMPONENT: Descuento.onMessage(obj, session); break;
             case DescuentoAsignado.COMPONENT: DescuentoAsignado.onMessage(obj, session); break;
+            case Comision.COMPONENT: Comision.onMessage(obj, session); break;
         }
     }
 }
