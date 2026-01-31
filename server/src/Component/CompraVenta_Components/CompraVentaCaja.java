@@ -107,6 +107,7 @@ public class CompraVentaCaja {
 
             double total_compra_venta = 0;
             JSONArray comisiones = new JSONArray();
+            JSONArray tblCostos = new JSONArray();
 
             for (int i = 0; i < detalle.length(); i++) {
                 JSONObject item = detalle.getJSONObject(i);
@@ -147,6 +148,27 @@ public class CompraVentaCaja {
                     comision.put("monto", modeloCliente.optDouble("comision",0)*item.getDouble("cantidad"));
                     comision.put("key_cuenta_contable", modeloCliente.optString("key_cuenta_contable"));
                     comisiones.put(comision);
+                }
+
+                // Costos
+
+                
+                    
+                JSONArray costos = item.optJSONArray("costos");
+                if (costos != null) {
+                    for (int j = 0; j < costos.length(); j++) {
+                        JSONObject costo = costos.getJSONObject(j);
+                        JSONObject objCosto = new JSONObject();
+                        objCosto.put("key", SUtil.uuid());
+                        objCosto.put("estado", 1);
+                        objCosto.put("fecha_on", SUtil.now());
+                        objCosto.put("key_usuario", data.getString("key_usuario"));
+                        objCosto.put("key_compra_venta_detalle", item.getString("key"));
+                        objCosto.put("key_costo", costo.optString("key_modelo_cliente"));
+                        objCosto.put("monto", costo.optDouble("monto"));
+                        objCosto.put("descripcion", costo.optString("descripcion"));
+                        tblCostos.put(objCosto);
+                    }
                 }
 
             }
@@ -247,7 +269,11 @@ public class CompraVentaCaja {
             data = response.getJSONObject("data");
 
             conectInstance.insertArray("compra_venta_detalle", detalle);
+
             conectInstance.insertArray("comision", comisiones);
+            if(tblCostos.length() > 0){
+                conectInstance.insertArray("compra_venta_detalle_costo", tblCostos);    
+            }
             conectInstance.commit();
 
             obj.put("data", data);
