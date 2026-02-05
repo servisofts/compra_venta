@@ -64,6 +64,7 @@ public class CompraVentaCaja {
             compraVenta.put("key_empresa", caja.getString("key_empresa"));
             compraVenta.put("key_sucursal", caja.getString("key_sucursal"));
             compraVenta.put("key_caja", caja.getString("key"));
+            compraVenta.put("key_almacen", data.getString("key_almacen"));
             compraVenta.put("key_moneda", moneda.getString("key"));
             compraVenta.put("tipo_cambio", moneda.getDouble("tipo_cambio"));
             compraVenta.put("facturar", data.getBoolean("facturar"));

@@ -161,10 +161,25 @@ public class CompraVentaDetalleCosto {
 
             JSONObject moneda = ContaHook.getMonedaBase(caja.getString("key_empresa"));
 
+            
+            if(!tipoCosto.has("key_tipo_pago") || tipoCosto.isNull("key_tipo_pago") || tipoCosto.optString("key_tipo_pago").length() <= 0){
+                throw new Exception("El tipo de costo no tiene tipo de pago asignado");
+            }
+
+            String key_modelo_compra = tipoCosto.optString("key_modelo_compra");
+
+
+            String key_tipo_pago = tipoCosto.optString("key_tipo_pago");
+
+            if(modeloCliente.has("key_tipo_pago") && !modeloCliente.isNull("key_tipo_pago") && modeloCliente.optString("key_tipo_pago").length() > 0){
+                key_tipo_pago = modeloCliente.optString("key_tipo_pago");
+            }
 
 
             data.put("key_caja", caja.getString("key"));
             data.put("caja", caja);
+            data.put("descripcion", compraVenta.getString("descripcion"));
+            data.put("observacion", compraVenta.getString("observacion"));
             data.put("key_moneda", moneda.getString("key"));
             data.put("key_compra_venta", SUtil.uuid());
             data.put("key_usuario", caja.getString("key_usuario"));
@@ -172,23 +187,23 @@ public class CompraVentaDetalleCosto {
             data.put("observacion", "Generado desde costo");
             data.put("key_proveedor", modeloCliente.getString("key_cliente"));
             data.put("key_cliente", "");
+            data.put("key_almacen", compraVenta.getString("key_almacen"));
+
             data.put("facturar", false);
 
             
-
-
-
-            
             data.put("detalle", new JSONArray().put(new JSONObject()
-                .put("key_modelo", modeloCliente.getString("key_modelo"))
+                .put("key_modelo", key_modelo_compra)
+                .put("descripcion", "Compra por costo: " + costo.optString("descripcion"))
                 .put("cantidad", 1)
+                .put("descuento", 0)
                 .put("precio_unitario", costo.optDouble("monto"))
                 .put("precio_unitario_base", costo.optDouble("monto"))
                 .put("key_modelo_cliente", modeloCliente.getString("key"))
             ));
 
             JSONObject emptipoPago = new JSONObject();
-            String keyEmpresaTipoPago = JSONObject.getNames(empresaTipoPago)[0];
+            String keyEmpresaTipoPago = key_tipo_pago;
             JSONObject empresaTP = empresaTipoPago.getJSONObject(keyEmpresaTipoPago);
 
             send = new JSONObject();
@@ -200,7 +215,7 @@ public class CompraVentaDetalleCosto {
 
             tipoPago.put("empresa_tipo_pago", empresaTP);
             tipoPago.put("monto_nacional", costo.optDouble("monto"));
-            tipoPago.put("monto_extranjera", 0);
+            tipoPago.put("monto_extranjera", costo.optDouble("monto"));
 
             emptipoPago.put(keyEmpresaTipoPago, tipoPago);
 
@@ -208,9 +223,12 @@ public class CompraVentaDetalleCosto {
 
             JSONObject sendS = new JSONObject();
             sendS.put("data", data);
+            
 
             new CompraVentaCaja(sendS,null,"compra");
             
+            
+            costo.put("key_compra", data.getString("key_compra_venta")); // comprado
 
             SPGConect.editObject(COMPONENT, costo);
             obj.put("data", costo);

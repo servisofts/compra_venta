@@ -24,7 +24,6 @@ public class CompraVentaDetalle {
             case "editar":
                 editar(obj, session);
                 break;
-            
             case "cambiarPrecios":
                 cambiarPrecios(obj, session);
                 break;
