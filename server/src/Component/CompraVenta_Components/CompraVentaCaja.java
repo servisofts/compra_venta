@@ -211,7 +211,9 @@ public class CompraVentaCaja {
                 cuota.put("capital", 0);
                 cuota.put("interes", 0);
                 cuota.put("estado", 1);
-
+                cuota.put("key_empresa_tipo_pago", tipoPago.getJSONObject("empresa_tipo_pago").optString("key"));
+                cuota.put("key_cuenta_contable", tipoPago.getJSONObject("empresa_tipo_pago").optString("key_cuenta_contable"));
+                    
                 if (tipoPago.getJSONObject("empresa_tipo_pago").getString("key_tipo_pago").equals("credito")) {
 
                     cuota.put("descripcion", "Cuota Credito");

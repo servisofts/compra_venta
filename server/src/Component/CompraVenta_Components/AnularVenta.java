@@ -102,7 +102,7 @@ public class AnularVenta {
                 JSONObject cuota = cuotas.getJSONObject(i);
                 double monto_sin_pagar = cuota.optDouble("monto_base", 0) - cuota.optDouble("total_amortizado_base", 0);
                 if (monto_sin_pagar > 0) {
-                    double tipo_cambio = cuota.optDouble("monto", 0) / cuota.optDouble("monto_base", 0);
+                    double tipo_cambio = cuota.optDouble("monto_base", 0) / cuota.optDouble("monto_base", 0);
                     double monto_sin_pagar_me = 0;
                     if (tipo_cambio != 1) {
                         monto_sin_pagar_me = Math.round(monto_sin_pagar * tipo_cambio * 100.0) / 100.0;
