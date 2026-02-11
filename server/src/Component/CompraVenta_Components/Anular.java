@@ -11,9 +11,9 @@ import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 
-public class AnularVenta {
+public class Anular {
 
-    public AnularVenta(JSONObject obj, SSSessionAbstract session) {
+    public Anular(JSONObject obj, SSSessionAbstract session, String tipo) {
          ConectInstance conectInstance = null;
         try {
             conectInstance = new ConectInstance();
@@ -107,14 +107,26 @@ public class AnularVenta {
                     if (tipo_cambio != 1) {
                         monto_sin_pagar_me = Math.round(monto_sin_pagar * tipo_cambio * 100.0) / 100.0;
                     }
-
+                    String tipoMovimiento = "pagar";
+                    if(tipo.equals("compra")){
+                        tipoMovimiento = "cobrar";
+                    }
                     JSONObject etp = empresa_tipo_pago.getJSONObject(cuota.getString("key_empresa_tipo_pago"));
-                    detallesm.put(new JSONObject()
+                    if(tipo.equals("venta")){
+                        detallesm.put(new JSONObject()
                             .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
                             .put("tipo", "haber")
                             .put("monto", monto_sin_pagar)
                             .put("monto_me", monto_sin_pagar_me)
-                            .put("glosa", "Revertir cuota pendiente por pagar"));
+                            .put("glosa", "Revertir cuota pendiente por "+ tipoMovimiento));
+                    }else{
+                        detallesm.put(new JSONObject()
+                            .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
+                            .put("tipo", "debe")
+                            .put("monto", monto_sin_pagar)
+                            .put("monto_me", monto_sin_pagar_me)
+                            .put("glosa", "Revertir cuota pendiente por "+ tipoMovimiento));
+                    }
                     // Revertir cuota;
                 }
 
@@ -138,7 +150,7 @@ public class AnularVenta {
                                 .put("tipo", "haber")
                                 .put("monto", amortizacion.getDouble("monto_base"))
                                 .put("monto_me", monto_me)
-                                .put("glosa", "Revertir amortizacion pagada"));
+                                .put("glosa", "Revertir amortizacion realizada"));
 
                         amortizacion.put("estado", 0);
                         conectInstance.editObject("cuota_amortizacion", amortizacion);

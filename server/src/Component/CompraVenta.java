@@ -5,7 +5,7 @@ import java.sql.SQLException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import Component.CompraVenta_Components.AmortizarCuotas;
-import Component.CompraVenta_Components.AnularVenta;
+import Component.CompraVenta_Components.Anular;
 import Component.CompraVenta_Components.CompraVentaCaja;
 import Contabilidad.ContaHook;
 import Servisofts.Contabilidad.AsientoContable;
@@ -84,7 +84,10 @@ public class CompraVenta {
                 new AmortizarCuotas(obj, session, "compra");
                 break;
             case "anularVenta":
-                new AnularVenta(obj, session);
+                new Anular(obj, session, "venta");
+                break;
+            case "anularCompra":
+                new Anular(obj, session, "compra");
                 break;
             case "compraCaja":
                 new CompraVentaCaja(obj, session, "compra");
