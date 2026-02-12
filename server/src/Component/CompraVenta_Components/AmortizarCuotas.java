@@ -7,6 +7,9 @@ import Component.Descuento;
 import Contabilidad.ContaHook;
 import Servisofts.SConsole;
 import Servisofts.SUtil;
+import Servisofts.Contabilidad.AsientoContable;
+import Servisofts.Contabilidad.AsientoContableDetalle;
+import Servisofts.Contabilidad.AsientoContableTipo;
 import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
@@ -19,8 +22,24 @@ public class AmortizarCuotas {
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
 
+            
+
             // Capturar la data devuelta
             JSONObject data = obj.getJSONObject("data");
+
+
+            AsientoContable  asiento = new AsientoContable(AsientoContableTipo.ingreso);
+            asiento.descripcion = "Amortizacion de cuotas";
+            asiento.observacion = "Amortizacion de cuotas";
+            asiento.key_empresa = obj.getString("key_empresa");
+            asiento.key_usuario = obj.getString("key_usuario");
+
+            JSONObject tags = new JSONObject()
+                .put("key_usuario", obj.getString("key_usuario"))
+                .put("key_empresa", asiento.key_empresa);
+
+
+
             JSONObject tiposPago = data.getJSONObject("tipos_pago");
             JSONArray key_cuotas = data.getJSONArray("cuotas");
 
@@ -34,12 +53,18 @@ public class AmortizarCuotas {
 
             JSONArray cuotas = conectInstance.ejecutarConsultaArray(query);
 
+            
+
             // double total_monto_caja = 0;
             // for (String key : JSONObject.getNames(tiposPago)) {
             // JSONObject tipoPago = tiposPago.getJSONObject(key);
             // total_monto_caja += tipoPago.optDouble("monto_nacional", 0);
             // }
             // System.out.println(cuotas);
+            
+
+            JSONObject tiposPagosConta = new JSONObject();
+
 
             JSONArray amortizaciones = new JSONArray();
             for (int i = 0; i < cuotas.length(); i++) {
@@ -60,6 +85,7 @@ public class AmortizarCuotas {
                 }
                 for (String key_empresa_tipo_pago : JSONObject.getNames(tiposPago)) {
                     JSONObject tipoPago = tiposPago.getJSONObject(key_empresa_tipo_pago);
+                    JSONObject empresaTipoPago = tipoPago.getJSONObject("empresa_tipo_pago");
                     double monto_nacional = tipoPago.optDouble("monto_nacional", 0);
                     double monto_extranjera = tipoPago.optDouble("monto_extranjera", 0);
                     double tipo_cambio_tp = monto_nacional / monto_extranjera;
@@ -105,6 +131,32 @@ public class AmortizarCuotas {
                             monto_gastado_extranjera + (monto_para_amortizar / tipo_cambio_tp));
 
                     amortizaciones.put(amort);
+
+                    tags.put("key_cuota", cuota.getString("key"));
+                    tags.put("key_cuota_amortizacion", amort.getString("key"));
+                    tags.put("key_empresa_tipo_pago", key_empresa_tipo_pago);
+
+                    asiento.setDetalle(new AsientoContableDetalle(
+                        cuota.getString("key_cuenta_contable"),
+                        "Amortización de cuota "+ cuota.getString("codigo")+" por medio de "+ empresaTipoPago.getString("descripcion"), 
+                        tipo=="venta"?"haber":"debe", 
+                        monto_para_amortizar, 
+                        monto_para_amortizar_extranjera, 
+                        tags));
+
+                    if(tiposPagosConta.has(key_empresa_tipo_pago)){
+                        JSONObject tp = tiposPagosConta.getJSONObject(key_empresa_tipo_pago);
+                        tp.put("monto_nacional", tp.optDouble("monto_nacional", 0) + monto_para_amortizar);
+                        tp.put("monto_extranjera", tp.optDouble("monto_extranjera", 0) + monto_para_amortizar_extranjera);
+                    }else{
+                        JSONObject tp = new JSONObject();
+                        tp.put("key_cuenta_contable", tipoPago.getString("key_cuenta_contable"));
+                        tp.put("descripcion", empresaTipoPago.getString("descripcion"));
+                        tp.put("monto_nacional", monto_para_amortizar);
+                        tp.put("monto_extranjera", monto_para_amortizar_extranjera);
+                        tiposPagosConta.put(key_empresa_tipo_pago, tp); 
+                    }
+
                 }
                 cuota.optDouble("total_amortizado", total_amortizado);
                 cuota.optDouble("total_amortizado_base", total_amortizado_base);
@@ -131,7 +183,34 @@ public class AmortizarCuotas {
                             "total_monto_extranjera_restante", total_monto_extranjera_restante);
                 }
             }
-            // System.out.println("total_monto_restante",total_monto_restante);
+
+
+            for (int i = 0; i < JSONObject.getNames(tiposPagosConta).length; i++) {
+
+                JSONObject tipoPagoConta = tiposPagosConta.getJSONObject(JSONObject.getNames(tiposPagosConta)[i]);
+                tags.put("key_empresa_tipo_pago", JSONObject.getNames(tiposPagosConta)[i]);
+                asiento.setDetalle(new AsientoContableDetalle(
+                        tipoPagoConta.getString("key_cuenta_contable"),
+                        "Amortización de cuota por medio de "+ tipoPagoConta.getString("descripcion"), 
+                        tipo=="venta"?"debe":"haber", 
+                        tipoPagoConta.getDouble("monto_nacional"), 
+                        tipoPagoConta.getDouble("monto_extranjera"),
+                        tags));
+                
+            }
+            
+
+            asiento.descripcion = "Amortización de cuotas";
+            asiento.observacion = "Amortización de cuotas";
+            asiento.key_empresa = obj.getString("key_empresa");
+            asiento.key_usuario = obj.getString("key_usuario");
+            asiento.tipo = AsientoContableTipo.ingreso;
+            JSONObject response = asiento.enviar();
+
+            if (!response.optString("estado").equals("exito")) {
+                throw new Exception(response.getString("error"));
+            }
+            
             conectInstance.commit();
 
             obj.put("data", data);
