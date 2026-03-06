@@ -173,17 +173,17 @@ public class Cuota {
 
     public static void editar(JSONObject obj, SSSessionAbstract session) {
         try {
-            JSONObject aux = getByKey(obj.getJSONObject("data").getString("key"));
-            aux.put("key_compra_venta", JSONObject.getNames(aux)[0]);
-            aux.put("key", SUtil.uuid());
-            aux.put("fecha_on", SUtil.now());
-            SPGConect.insertArray(COMPONENT+"_historico", new JSONArray().put(aux));
+            // JSONObject aux = getByKey(obj.getJSONObject("data").getString("key"));
+            // aux.put("key_compra_venta", JSONObject.getNames(aux)[0]);
+            // aux.put("key", SUtil.uuid());
+            // aux.put("fecha_on", SUtil.now());
+            // SPGConect.insertArray(COMPONENT+"_historico", new JSONArray().put(aux));
 
             JSONObject data = obj.getJSONObject("data");
             SPGConect.editObject(COMPONENT, data);
             obj.put("data", data);
             obj.put("estado", "exito");
-            obj.put("sendAll", true);
+            // obj.put("sendAll", true);
 
 
         } catch (Exception e) {
