@@ -14,7 +14,7 @@ import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 public class Anular {
 
     public Anular(JSONObject obj, SSSessionAbstract session, String tipo) {
-         ConectInstance conectInstance = null;
+        ConectInstance conectInstance = null;
         try {
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
@@ -108,24 +108,24 @@ public class Anular {
                         monto_sin_pagar_me = Math.round(monto_sin_pagar * tipo_cambio * 100.0) / 100.0;
                     }
                     String tipoMovimiento = "pagar";
-                    if(tipo.equals("compra")){
+                    if (tipo.equals("compra")) {
                         tipoMovimiento = "cobrar";
                     }
                     JSONObject etp = empresa_tipo_pago.getJSONObject(cuota.getString("key_empresa_tipo_pago"));
-                    if(tipo.equals("venta")){
+                    if (tipo.equals("venta")) {
                         detallesm.put(new JSONObject()
-                            .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
-                            .put("tipo", "haber")
-                            .put("monto", monto_sin_pagar)
-                            .put("monto_me", monto_sin_pagar_me)
-                            .put("glosa", "Revertir cuota pendiente por "+ tipoMovimiento));
-                    }else{
+                                .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
+                                .put("tipo", "haber")
+                                .put("monto", monto_sin_pagar)
+                                .put("monto_me", monto_sin_pagar_me)
+                                .put("glosa", "Revertir cuota pendiente por " + tipoMovimiento));
+                    } else {
                         detallesm.put(new JSONObject()
-                            .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
-                            .put("tipo", "debe")
-                            .put("monto", monto_sin_pagar)
-                            .put("monto_me", monto_sin_pagar_me)
-                            .put("glosa", "Revertir cuota pendiente por "+ tipoMovimiento));
+                                .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
+                                .put("tipo", "debe")
+                                .put("monto", monto_sin_pagar)
+                                .put("monto_me", monto_sin_pagar_me)
+                                .put("glosa", "Revertir cuota pendiente por " + tipoMovimiento));
                     }
                     // Revertir cuota;
                 }
@@ -143,15 +143,26 @@ public class Anular {
                         if (tipo_cambio != 1) {
                             monto_me = amortizacion.optDouble("monto", 0);
                         }
-                        JSONObject etp = empresa_tipo_pago
-                                .getJSONObject(amortizacion.getString("key_empresa_tipo_pago"));
-                        detallesm.put(new JSONObject()
-                                .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
-                                .put("tipo", "haber")
-                                .put("monto", amortizacion.getDouble("monto_base"))
-                                .put("monto_me", monto_me)
-                                .put("glosa", "Revertir amortizacion realizada"));
+                        if (tipo.equals("venta")) {
+                            JSONObject etp = empresa_tipo_pago
+                                    .getJSONObject(amortizacion.getString("key_empresa_tipo_pago"));
+                            detallesm.put(new JSONObject()
+                                    .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
+                                    .put("tipo", "haber")
+                                    .put("monto", amortizacion.getDouble("monto_base"))
+                                    .put("monto_me", monto_me)
+                                    .put("glosa", "Revertir amortizacion realizada"));
 
+                        }else{
+                            JSONObject etp = empresa_tipo_pago
+                                    .getJSONObject(amortizacion.getString("key_empresa_tipo_pago"));
+                            detallesm.put(new JSONObject()
+                                    .put("key_cuenta_contable", etp.getString("key_cuenta_contable"))
+                                    .put("tipo", "debe")
+                                    .put("monto", amortizacion.getDouble("monto_base"))
+                                    .put("monto_me", monto_me)
+                                    .put("glosa", "Revertir amortizacion realizada"));
+                        }
                         amortizacion.put("estado", 0);
                         conectInstance.editObject("cuota_amortizacion", amortizacion);
                     }
