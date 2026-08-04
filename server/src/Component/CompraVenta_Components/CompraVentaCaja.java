@@ -58,7 +58,7 @@ public class CompraVentaCaja {
             compraVenta.put("observacion", data.optString("observacion"));
             compraVenta.put("state", tipo == "compra" ? "comprado" : "vendido");
             compraVenta.put("tipo", tipo);
-            compraVenta.put("tipo_pago", "contado");
+            compraVenta.put("tipo_pago", data.getString("tipo_pago"));
             compraVenta.put("key_proveedor", data.optString("key_proveedor"));
             compraVenta.put("key_cliente", data.optString("key_cliente"));
             compraVenta.put("key_empresa", caja.getString("key_empresa"));
@@ -67,8 +67,14 @@ public class CompraVentaCaja {
             compraVenta.put("key_almacen", data.getString("key_almacen"));
             compraVenta.put("key_moneda", moneda.getString("key"));
             compraVenta.put("tipo_cambio", moneda.getDouble("tipo_cambio"));
-            compraVenta.put("facturar", data.getBoolean("facturar"));
 
+            // compraVenta.put("fecha_vencimiento", "2021-11-01T18:14:27.394-04:00");
+            // compraVenta.put("fecha_vencimiento", data.optString("fecha_vencimiento"));
+
+            compraVenta.put("facturar", data.getBoolean("facturar"));
+            compraVenta.put("factura", data.optJSONObject("factura"));
+
+            // alvaro
             if (data.has("cliente")) {
                 JSONObject data_extra = new JSONObject();
                 data_extra.put("razon_social", data.optJSONObject("cliente").optString("razon_social"));
@@ -76,6 +82,7 @@ public class CompraVentaCaja {
                 compraVenta.put("cliente", data_extra);
             }
 
+            System.out.println(compraVenta.toString(4));
             conectInstance.insertObject("compra_venta", compraVenta);
 
             data.put("compra_venta", compraVenta);
@@ -134,8 +141,9 @@ public class CompraVentaCaja {
 
                     JSONObject modeloCliente = InventarioHook.getModeloCliente(item.getString("key_modelo_cliente"));
 
-                    if(modeloCliente == null){
-                        throw new Exception("El modelo cliente con key " + item.getString("key_modelo_cliente") + " no existe");
+                    if (modeloCliente == null) {
+                        throw new Exception(
+                                "El modelo cliente con key " + item.getString("key_modelo_cliente") + " no existe");
                     }
 
                     JSONObject comision = new JSONObject();
@@ -146,15 +154,13 @@ public class CompraVentaCaja {
                     comision.put("key_compra_venta_detalle", item.getString("key"));
                     comision.put("key_modelo_cliente", item.getString("key_modelo_cliente"));
                     comision.put("descripcion", "Comisión por venta");
-                    comision.put("monto", modeloCliente.optDouble("comision",0)*item.getDouble("cantidad"));
+                    comision.put("monto", modeloCliente.optDouble("comision", 0) * item.getDouble("cantidad"));
                     comision.put("key_cuenta_contable", modeloCliente.optString("key_cuenta_contable"));
                     comisiones.put(comision);
                 }
 
                 // Costos
 
-                
-                    
                 JSONArray costos = item.optJSONArray("costos");
                 if (costos != null) {
                     for (int j = 0; j < costos.length(); j++) {
@@ -173,8 +179,6 @@ public class CompraVentaCaja {
                 }
 
             }
-
-           
 
             total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0; // Redondear a dos decimales
             // total_compra_venta -= totalDescuento;
@@ -212,8 +216,9 @@ public class CompraVentaCaja {
                 cuota.put("interes", 0);
                 cuota.put("estado", 1);
                 cuota.put("key_empresa_tipo_pago", tipoPago.getJSONObject("empresa_tipo_pago").optString("key"));
-                cuota.put("key_cuenta_contable", tipoPago.getJSONObject("empresa_tipo_pago").optString("key_cuenta_contable"));
-                    
+                cuota.put("key_cuenta_contable",
+                        tipoPago.getJSONObject("empresa_tipo_pago").optString("key_cuenta_contable"));
+
                 if (tipoPago.getJSONObject("empresa_tipo_pago").getString("key_tipo_pago").equals("credito")) {
 
                     cuota.put("descripcion", "Cuota Credito");
@@ -261,10 +266,7 @@ public class CompraVentaCaja {
                 send.put("type", "ventaCaja");
             }
             send.put("data", data);
-
             JSONObject response = SocketCliente.sendSinc("inventario", send);
-            // System.out.println(response);
-
             if (!response.getString("estado").equals("exito")) {
                 throw new Exception(response.optString("error", "Error al registrar la compra"));
             }
@@ -274,11 +276,10 @@ public class CompraVentaCaja {
             conectInstance.insertArray("compra_venta_detalle", detalle);
 
             conectInstance.insertArray("comision", comisiones);
-            if(tblCostos.length() > 0){
-                conectInstance.insertArray("compra_venta_detalle_costo", tblCostos);    
+            if (tblCostos.length() > 0) {
+                conectInstance.insertArray("compra_venta_detalle_costo", tblCostos);
             }
             conectInstance.commit();
-
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
