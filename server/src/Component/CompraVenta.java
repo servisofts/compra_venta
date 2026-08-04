@@ -6,6 +6,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import Component.CompraVenta_Components.AmortizarCuotas;
 import Component.CompraVenta_Components.Anular;
+import Component.CompraVenta_Components.AnularAmortizacion;
 import Component.CompraVenta_Components.CompraVentaCaja;
 import Contabilidad.ContaHook;
 import Servisofts.Contabilidad.AsientoContable;
@@ -88,6 +89,9 @@ public class CompraVenta {
                 break;
             case "anularCompra":
                 new Anular(obj, session, "compra");
+                break;
+            case "anularAmortizacion":
+                new AnularAmortizacion(obj, session);
                 break;
             case "compraCaja":
                 new CompraVentaCaja(obj, session, "compra");
