@@ -28,7 +28,7 @@ public class AmortizarCuotas {
             JSONObject data = obj.getJSONObject("data");
 
 
-            AsientoContable  asiento = new AsientoContable(AsientoContableTipo.ingreso);
+            AsientoContable  asiento = new AsientoContable(tipo.equals("venta") ? AsientoContableTipo.ingreso : AsientoContableTipo.egreso);
             asiento.descripcion = "Amortizacion de cuotas";
             asiento.observacion = "Amortizacion de cuotas";
             asiento.key_empresa = obj.getString("key_empresa");
@@ -121,6 +121,7 @@ public class AmortizarCuotas {
                     amort.put("monto_base", monto_para_amortizar);
                     amort.put("capital", 0);
                     amort.put("interes", 0);
+                    amort.put("key_caja_detalle", tipoPago.optString("key_caja_detalle", null));
 
                     conectInstance.insertObject("cuota_amortizacion", amort);
                     total_amortizado -= monto_para_amortizar_extranjera;
@@ -204,7 +205,7 @@ public class AmortizarCuotas {
             asiento.observacion = "Amortización de cuotas";
             asiento.key_empresa = obj.getString("key_empresa");
             asiento.key_usuario = obj.getString("key_usuario");
-            asiento.tipo = AsientoContableTipo.ingreso;
+            asiento.tipo = tipo.equals("venta") ? AsientoContableTipo.ingreso : AsientoContableTipo.egreso;
             JSONObject response = asiento.enviar();
 
             if (!response.optString("estado").equals("exito")) {
