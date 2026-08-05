@@ -201,7 +201,8 @@ public class AnularAmortizacion {
                     .put("key_caja_detalle", key_caja_detalle)
                     .put("monto", montoTotalRevertido)
                     .put("monto_base", montoTotalRevertidoBase)
-                    .put("tipo", tipo));
+                    .put("tipo", tipo)
+                    .put("asiento_contable", new JSONObject().put("key", asiento.key).put("codigo", asiento.codigo)));
             obj.put("estado", "exito");
         } catch (Exception e) {
             e.printStackTrace();

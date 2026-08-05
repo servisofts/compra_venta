@@ -211,7 +211,9 @@ public class AmortizarCuotas {
             if (!response.optString("estado").equals("exito")) {
                 throw new Exception(response.getString("error"));
             }
-            
+
+            data.put("asiento_contable", new JSONObject().put("key", asiento.key).put("codigo", asiento.codigo));
+
             conectInstance.commit();
 
             obj.put("data", data);
