@@ -236,6 +236,7 @@ public class CompraVentaCaja {
                     cuotaAmortizacion.put("fecha", SUtil.now());
                     cuotaAmortizacion.put("key_usuario", data.getString("key_usuario"));
                     cuotaAmortizacion.put("key_compra_venta", compraVenta.getString("key"));
+                    cuotaAmortizacion.put("key_caja_detalle", tipoPago.optString("key_caja_detalle", null));
                     cuotaAmortizacion.put("descripcion", "Cuota Amortizacion");
                     cuotaAmortizacion.put("key_moneda",
                             tipoPago.getJSONObject("empresa_tipo_pago").getString("key_moneda"));
