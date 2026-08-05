@@ -3,14 +3,11 @@ package Component.CompraVenta_Components;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import Component.Descuento;
-import Contabilidad.ContaHook;
 import Servisofts.SConsole;
 import Servisofts.SUtil;
 import Servisofts.Contabilidad.AsientoContable;
 import Servisofts.Contabilidad.AsientoContableDetalle;
 import Servisofts.Contabilidad.AsientoContableTipo;
-import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 
@@ -22,15 +19,13 @@ public class AmortizarCuotas {
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
 
-            
-
             // Capturar la data devuelta
             JSONObject data = obj.getJSONObject("data");
 
 
             AsientoContable  asiento = new AsientoContable(tipo.equals("venta") ? AsientoContableTipo.ingreso : AsientoContableTipo.egreso);
-            asiento.descripcion = "Amortizacion de cuotas";
-            asiento.observacion = "Amortizacion de cuotas";
+            asiento.descripcion = "Amortización de cuotas";
+            asiento.observacion = "Amortización de cuotas";
             asiento.key_empresa = obj.getString("key_empresa");
             asiento.key_usuario = obj.getString("key_usuario");
 
@@ -52,16 +47,6 @@ public class AmortizarCuotas {
                     """.formatted(key_cuotas.toString());
 
             JSONArray cuotas = conectInstance.ejecutarConsultaArray(query);
-
-            
-
-            // double total_monto_caja = 0;
-            // for (String key : JSONObject.getNames(tiposPago)) {
-            // JSONObject tipoPago = tiposPago.getJSONObject(key);
-            // total_monto_caja += tipoPago.optDouble("monto_nacional", 0);
-            // }
-            // System.out.println(cuotas);
-            
 
             JSONObject tiposPagosConta = new JSONObject();
 
@@ -105,7 +90,6 @@ public class AmortizarCuotas {
                         monto_para_amortizar = monto_disponible;
                     }
                     double monto_para_amortizar_extranjera = monto_para_amortizar * tipo_cambio;
-                    // total_monto_caja -= monto_para_amortizar;
 
                     JSONObject amort = new JSONObject();
                     amort.put("key", SUtil.uuid());
@@ -140,7 +124,7 @@ public class AmortizarCuotas {
                     asiento.setDetalle(new AsientoContableDetalle(
                         cuota.getString("key_cuenta_contable"),
                         "Amortización de cuota "+ cuota.getString("codigo")+" por medio de "+ empresaTipoPago.getString("descripcion"), 
-                        tipo=="venta"?"haber":"debe", 
+                        tipo.equals("venta")?"haber":"debe",
                         monto_para_amortizar, 
                         monto_para_amortizar_extranjera, 
                         tags));
@@ -193,19 +177,13 @@ public class AmortizarCuotas {
                 asiento.setDetalle(new AsientoContableDetalle(
                         tipoPagoConta.getString("key_cuenta_contable"),
                         "Amortización de cuota por medio de "+ tipoPagoConta.getString("descripcion"), 
-                        tipo=="venta"?"debe":"haber", 
+                        tipo.equals("venta")?"debe":"haber",
                         tipoPagoConta.getDouble("monto_nacional"), 
                         tipoPagoConta.getDouble("monto_extranjera"),
                         tags));
                 
             }
-            
 
-            asiento.descripcion = "Amortización de cuotas";
-            asiento.observacion = "Amortización de cuotas";
-            asiento.key_empresa = obj.getString("key_empresa");
-            asiento.key_usuario = obj.getString("key_usuario");
-            asiento.tipo = tipo.equals("venta") ? AsientoContableTipo.ingreso : AsientoContableTipo.egreso;
             JSONObject response = asiento.enviar();
 
             if (!response.optString("estado").equals("exito")) {

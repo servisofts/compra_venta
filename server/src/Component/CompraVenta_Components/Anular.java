@@ -3,10 +3,7 @@ package Component.CompraVenta_Components;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import Component.Descuento;
-import Contabilidad.ContaHook;
 import Servisofts.SPGConect;
-import Servisofts.SUtil;
 import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
@@ -56,7 +53,6 @@ public class Anular {
             JSONObject compraVenta = SPGConect.ejecutarConsultaObject(query);
             compraVenta.put("estado", 0);
             conectInstance.editObject("compra_venta", compraVenta);
-            // compraVenta.put("detalles", detalles);
 
             JSONObject empresa_tipo_pago = obj.getJSONObject("empresa_tipo_pago");
             String consultaGetCuotas = """
@@ -169,22 +165,14 @@ public class Anular {
                 }
             }
 
-            System.out.println(detallesm);
             obj.put("detalle_cuotas", detallesm);
             obj.put("compra_venta", compraVenta);
             obj.put("component", "modelo");
-            // JSONObject send = new JSONObject();
-            // send.put("component", "compra_venta");
-            // send.put("type", "anularCompraVenta");
-            // send.put("key_usuario", obj.getString("key_usuario"));
-            // send.put("key_compra_venta", key_compra_venta);
 
             JSONObject data = SocketCliente.sendSinc("inventario", obj);
             if (!data.getString("estado").equals("exito")) {
                 throw new Exception(data.optString("error", "Error al anular la venta en inventario"));
             }
-            obj.put("data", compraVenta);
-            obj.put("estado", "exito");
             conectInstance.commit();
 
             obj.put("data", data);
@@ -193,7 +181,9 @@ public class Anular {
             e.printStackTrace();
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
-            conectInstance.rollback();
+            if (conectInstance != null) {
+                conectInstance.rollback();
+            }
         } finally {
             if (conectInstance != null) {
                 conectInstance.close();
