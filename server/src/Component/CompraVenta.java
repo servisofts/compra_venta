@@ -1,7 +1,5 @@
 package Component;
 
-import java.math.BigDecimal;
-import java.sql.SQLException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import Component.CompraVenta_Components.AmortizarCuotas;
@@ -18,12 +16,9 @@ import Servisofts.SPGConect;
 import Servisofts.SUtil;
 import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
-import Util.InventarioHook;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.Random;
 
 public class CompraVenta {
@@ -82,7 +77,7 @@ public class CompraVenta {
 
             // InComponents
             case "amortizarCuotaCompra":
-                new AmortizarCuotas(obj, session, "compra");
+                new AmortizarCuotas(obj, session, obj.getJSONObject("data").optString("tipo", "compra"));
                 break;
             case "anularVenta":
                 new Anular(obj, session, "venta");
@@ -276,7 +271,6 @@ public class CompraVenta {
             // ===============================================================
             // 8. CONFIGURACIONES FIJAS
             // ===============================================================
-            // final String LEYENDA = "Ley N° 453: Tienes derecho a recibir información sobre las características y contenidos de los productos que consumes.";
             final String ACTIVIDAD_ECONOMICA = "475200";
             final String TIPO_DOC_CLIENTE = "1";
             final String NUMERO_FACTURA_DEFAULT = "0";
@@ -445,8 +439,6 @@ public class CompraVenta {
 
     public static void getStates(JSONObject obj, SSSessionAbstract session) {
         try {
-            // String consulta = "select
-            // get_compras_ventas('"+obj.getString("key_sucursal")+"') as json";
             String consulta = "select get_compras_ventas('" + obj.getString("key_sucursal") + "', '"
                     + obj.getString("fecha_inicio") + "', '" + obj.getString("fecha_fin") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
@@ -633,7 +625,6 @@ public class CompraVenta {
                 tipo_registro_icon = "🏷️";
             }
 
-            System.out.println(data);
             Notificar.send(tipo_registro_icon + " Registraste " + data.getString("descripcion"),
                     data.getString("observacion"), data_, obj.getJSONObject("servicio").getString("key"),
                     obj.getString("key_usuario"));
@@ -655,9 +646,6 @@ public class CompraVenta {
             JSONObject data = obj.getJSONObject("data");
 
             boolean vigentes = true;
-            if (data.getString("state").equals("vendido")) {
-                // vigentes = CompraVenta.verificarProductosVigentes(data.getString("key"));
-            }
 
             if (!vigentes) {
                 obj.put("estado", "error");
@@ -673,24 +661,6 @@ public class CompraVenta {
 
             obj.put("sendAll", true);
 
-            /*
-             * Para enviar solo a los participantes de la compraventa
-             * if(data.getString("state").equals("comprado")){
-             * obj.put("sendAll", true);
-             * }else{
-             * JSONObject compraVentaParticipantes =
-             * CompraVentaParticipante.getAll(data.getString("key"));
-             * JSONArray key_usuarios = new JSONArray();
-             * for (int i = 0; i < JSONObject.getNames(compraVentaParticipantes).length;
-             * i++) {
-             * key_usuarios.put(compraVentaParticipantes.getJSONObject(JSONObject.getNames(
-             * compraVentaParticipantes)[i]).getString("key_usuario_participante"));
-             * }
-             * 
-             * obj.put("sendUsers", key_usuarios);
-             * }
-             */
-
         } catch (Exception e) {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
@@ -700,8 +670,6 @@ public class CompraVenta {
 
     public static void pdf(JSONObject obj, SSSessionAbstract session) {
         try {
-
-            System.out.println("raaaaaaaaaaaaaaaaaaaaaaaaaaaa " + obj.getString("key_compra_venta"));
             new PDF().generarCompraVenta(obj.getString("key_compra_venta"));
             obj.put("data", obj.getString("key_compra_venta"));
             obj.put("estado", "exito");
@@ -924,8 +892,6 @@ public class CompraVenta {
         try {
 
             String keyCompraVenta = obj.getString("key_compra_venta");
-            // new PDF().generarCompraVenta();
-            // obj.put("data", obj.getString("key_compra_venta"));
 
             JSONObject compraVenta = CompraVenta.getByKey(keyCompraVenta);
 
@@ -999,155 +965,6 @@ public class CompraVenta {
             obj.put("error", e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    public static void ventaRapidaOld(JSONObject obj, SSSessionAbstract session) {
-        try {
-            JSONObject data = obj.getJSONObject("data");
-
-            JSONObject venta = registroVenta(obj);
-            registroParticipantesVenta(venta);
-            registroCompraVentaDetalle(venta, data);
-            registroCuotaContado(venta);
-
-            venta.put("state", "vendido");
-            SPGConect.editObject(COMPONENT, venta);
-
-            obj.put("data", venta);
-            obj.put("estado", "exito");
-        } catch (Exception e) {
-            obj.put("estado", "error");
-            obj.put("error", e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    private static JSONObject registroVenta(JSONObject obj) throws SQLException {
-
-        JSONObject data = obj.getJSONObject("data");
-
-        // Registro la compra_venta
-        JSONObject venta = new JSONObject();
-        venta.put("key", SUtil.uuid());
-        venta.put("estado", 1);
-        venta.put("state", "cotizacion");
-        venta.put("fecha_on", SUtil.now());
-        venta.put("descripcion", "Venta Rápida");
-        venta.put("key_usuario", obj.getString("key_usuario"));
-        venta.put("key_servicio", obj.getJSONObject("servicio").getString("key"));
-        venta.put("tipo_pago", "contado");
-        venta.put("tipo", "venta");
-        venta.put("key_empresa", obj.getString("key_empresa"));
-
-        if (data.has("key_sucursal") && !data.isNull("key_sucursal")) {
-            venta.put("key_sucursal", data.getString("key_sucursal"));
-        }
-
-        if (data.has("cliente") && !data.isNull("cliente")) {
-            venta.put("cliente", data.getJSONObject("cliente"));
-        }
-
-        SPGConect.insertArray(COMPONENT, new JSONArray().put(venta));
-
-        return venta;
-    }
-
-    private static JSONObject registroParticipantesVenta(JSONObject venta) throws SQLException {
-        JSONObject compra_venta_participante = new JSONObject();
-        compra_venta_participante.put("key", SUtil.uuid());
-        compra_venta_participante.put("estado", 1);
-        compra_venta_participante.put("fecha_on", SUtil.now());
-        compra_venta_participante.put("key_usuario", venta.getString("key_usuario"));
-        compra_venta_participante.put("key_compra_venta", venta.getString("key"));
-        compra_venta_participante.put("key_usuario_participante", venta.getString("key_usuario"));
-        compra_venta_participante.put("tipo", "admin");
-        SPGConect.insertArray(CompraVentaParticipante.COMPONENT, new JSONArray().put(compra_venta_participante));
-        return compra_venta_participante;
-    }
-
-    private static JSONObject registroCompraVentaDetalle(JSONObject venta, JSONObject data) throws Exception {
-        JSONArray productos = data.getJSONArray("productos");
-
-        JSONObject send = new JSONObject();
-        send.put("component", "producto");
-        send.put("type", "getAllByKeys");
-        send.put("key_usuario", venta.getString("key_usuario"));
-        send.put("key_empresa", venta.getString("key_empresa"));
-        send.put("data", productos);
-
-        // JSONObject response =
-        // SSServerAbstract.getSessionByNombreServicio("inventario").sendSync(send);
-        JSONObject response = SocketCliente.sendSinc("inventario", send);
-        // send.put("estado", "exito");
-        if (response.getString("estado").equals("error")) {
-            response.put("estado", "error");
-            response.put("error", send.getString("error"));
-            throw new Exception("Error al traer los productos");
-        }
-
-        productos = response.getJSONArray("data");
-
-        JSONObject productoIn;
-        JSONObject compra_venta_detalle;
-        JSONObject compra_venta_detalle_producto;
-        BigDecimal total_venta = BigDecimal.ZERO;
-        for (int i = 0; i < productos.length(); i++) {
-            productoIn = productos.getJSONObject(i);
-
-            // registrar compra_venta_detalle
-            compra_venta_detalle = new JSONObject();
-            compra_venta_detalle.put("key", SUtil.uuid());
-            compra_venta_detalle.put("estado", 1);
-            compra_venta_detalle.put("fecha_on", SUtil.now());
-            compra_venta_detalle.put("key_usuario", venta.getString("key_usuario"));
-            compra_venta_detalle.put("key_compra_venta", venta.getString("key"));
-            compra_venta_detalle.put("descripcion", productoIn.getString("nombre_producto")); // sacar de producto
-                                                                                              // nombre + observacion +
-                                                                                              // descripcion
-            compra_venta_detalle.put("cantidad", productoIn.getInt("cantidad_solicitada"));
-            compra_venta_detalle.put("precio_unitario", productoIn.getInt("precio_solicitado"));
-            compra_venta_detalle.put("descuento", 0);
-            compra_venta_detalle.put("tipo", "producto"); // productio | activo_fijo
-
-            SPGConect.insertArray(CompraVentaDetalle.COMPONENT, new JSONArray().put(compra_venta_detalle));
-
-            // registrar compra_venta_detalle_producto
-            compra_venta_detalle_producto = new JSONObject();
-            compra_venta_detalle_producto.put("key", SUtil.uuid());
-            compra_venta_detalle_producto.put("estado", 1);
-            compra_venta_detalle_producto.put("fecha_on", SUtil.now());
-            compra_venta_detalle_producto.put("key_usuario", venta.getString("key_usuario"));
-            compra_venta_detalle_producto.put("key_compra_venta_detalle", compra_venta_detalle.getString("key"));
-            compra_venta_detalle_producto.put("key_producto", productoIn.getString("key"));
-
-            SPGConect.insertArray(CompraVentaDetalleProducto.COMPONENT,
-                    new JSONArray().put(compra_venta_detalle_producto));
-
-            total_venta = total_venta.add(BigDecimal.valueOf(productoIn.getDouble("precio_total_solicitado")));
-
-        }
-
-        venta.put("total_venta", total_venta.doubleValue());
-
-        return null;
-    }
-
-    private static JSONObject registroCuotaContado(JSONObject venta) throws SQLException {
-        JSONObject cuota = new JSONObject();
-        cuota.put("key", SUtil.uuid());
-        cuota.put("estado", 1);
-        cuota.put("fecha_on", SUtil.now());
-        cuota.put("key_usuario", venta.getString("key_usuario"));
-        cuota.put("key_compra_venta", venta.getString("key"));
-        cuota.put("codigo", "0");
-        cuota.put("descripcion", "Inicial");
-        cuota.put("fecha", new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
-        cuota.put("monto", venta.getDouble("total_venta"));
-        cuota.put("capital", venta.getDouble("total_venta"));
-        cuota.put("interes", 0);
-
-        SPGConect.insertArray(Cuota.COMPONENT, new JSONArray().put(cuota));
-        return cuota;
     }
 
     public static void compraRapida(JSONObject obj, SSSessionAbstract session) {
@@ -1369,7 +1186,6 @@ public class CompraVenta {
 
             for (int i = 0; i < tiposPago.length(); i++) {
                 JSONObject tipoPago = tiposPago.getJSONObject(i);
-                // moneda= monedas.getJSONObject(tipoPago.getString("key_moneda"));
 
                 tipoPagoOriginal = tiposPagoOriginal.getJSONObject(tipoPago.getString("key_tipo_pago"));
 
@@ -1425,13 +1241,11 @@ public class CompraVenta {
             JSONObject punto_venta = getPuntoVenta(caja.getString("key_punto_venta"));
             JSONObject sucursal = getSucursal(punto_venta.getString("key_sucursal"));
             JSONObject monedas = ContaHook.getMonedas(sucursal.getString("key_empresa"));
-            // alvaro
             String keyMoneda = data.getString("key_moneda");
             JSONObject monedaCaja = monedas.getJSONObject(keyMoneda);
             double tipo_cambioCaja = monedaCaja.getDouble("tipo_cambio");
 
             JSONObject puntoVentaTiposPago = ContaHook.puntosVentaTipoPago(caja.getString("key_punto_venta"));
-            // JSONObject tiposPago = ContaHook.tiposPago();
             double totalPago = 0;
 
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
@@ -1513,9 +1327,6 @@ public class CompraVenta {
             venta.put("cuotas", new JSONArray().put(cuota_inicial));
             venta.put("detalle", detalle);
 
-            // JSONObject CuentaDeGanancias =
-            // Contabilidad.getAjusteEmpresa(sucursal.getString("key_empresa"), "ganancia");
-
             AsientoContable asiento = new AsientoContable(AsientoContableTipo.ingreso);
             asiento.descripcion = "Venta Rápida";
             asiento.observacion = "Venta rapida obs";
@@ -1570,21 +1381,13 @@ public class CompraVenta {
 
             }
 
-            // total_venta = Math.round(total_venta * 100.0) / 100.0;
-            // asiento.setDetalle(new
-            // AsientoContableDetalle(CuentaDeGanancias.getString("key"), "Ventas")
-            // .setHaber(total_venta));
-
             JSONObject tipoPagoOriginal = null;
             double amortizar = 0;
-            JSONObject moneda;
             JSONArray tiposPago = new JSONArray();
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
                 JSONObject tipoPago = puntoVentaTiposPago
                         .getJSONObject(JSONObject.getNames(data.getJSONObject("tipos_pago"))[i]);
                 tiposPago.put(tipoPago);
-
-                // moneda = monedas.getJSONObject(tipoPago.getString("key_moneda"));
 
                 tipoPagoOriginal = tipoPago;
 
@@ -1599,8 +1402,6 @@ public class CompraVenta {
                     keyCuenta = caja.getString("key_cuenta_contable");
                 }
 
-                // double montoBase =
-                // tipoPago.getDouble("monto")/moneda.optDouble("tipo_cambio",1);
                 double montoTc = tipoPago.getDouble("monto_nacional");
                 montoTc = Math.round(montoTc * 100.0) / 100.0; // Redondear a dos decimales
 
@@ -1644,8 +1445,6 @@ public class CompraVenta {
                 JSONObject puntoVentaTipoPago = puntoVentaTiposPago
                         .getJSONObject(JSONObject.getNames(data.getJSONObject("tipos_pago"))[i]);
 
-                // moneda= monedas.getJSONObject(puntoVentaTipoPago.getString("key_moneda"));
-
                 double dmonto = puntoVentaTipoPago.getDouble("monto_extranjera");
                 dmonto = Math.round(dmonto * 100.0) / 100.0; // Redondear a dos decimales
 
@@ -1654,7 +1453,6 @@ public class CompraVenta {
                         asientoContable.getString("codigo"), data.getString("key_usuario"), info, keyMoneda,
                         tipo_cambioCaja, puntoVentaTipoPago.getString("key_tipo_pago"));
             }
-            // asiento.enviar();
             obj.put("data", venta);
             obj.put("estado", "exito");
             conectInstance.commit();
@@ -1672,7 +1470,9 @@ public class CompraVenta {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
             e.printStackTrace();
-            conectInstance.rollback();
+            if (conectInstance != null) {
+                conectInstance.rollback();
+            }
         } finally {
             if (conectInstance != null) {
                 conectInstance.close();
@@ -1697,15 +1497,6 @@ public class CompraVenta {
         JSONObject resp = SocketCliente.sendSinc("caja", send);
         return resp.getJSONObject("data");
     }
-
-    // public static JSONObject generarLeyenda() {
-    // JSONObject send = new JSONObject();
-    // send.put("component", "caja");
-    // send.put("type", "getByKey");
-    // send.put("key", key_caja);
-    // JSONObject resp = SocketCliente.sendSinc("caja", send);
-    // return resp.getJSONObject("data");
-    // }
 
     public static JSONObject getPuntoVenta(String key_punto_venta) {
         JSONObject send = new JSONObject();

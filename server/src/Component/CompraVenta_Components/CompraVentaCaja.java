@@ -56,7 +56,10 @@ public class CompraVentaCaja {
             compraVenta.put("key_usuario", data.getString("key_usuario"));
             compraVenta.put("descripcion", data.getString("descripcion"));
             compraVenta.put("observacion", data.optString("observacion"));
+            // compraVenta.put("state", tipo.equals("compra") ? "comprado" : "vendido");
             compraVenta.put("state", tipo == "compra" ? "comprado" : "vendido");
+
+            // compraVenta.put("state", tipo.equals("compra") ? "comprado" : "vendido");
             compraVenta.put("tipo", tipo);
             compraVenta.put("tipo_pago", data.getString("tipo_pago"));
             compraVenta.put("key_proveedor", data.optString("key_proveedor"));
@@ -68,13 +71,9 @@ public class CompraVentaCaja {
             compraVenta.put("key_moneda", moneda.getString("key"));
             compraVenta.put("tipo_cambio", moneda.getDouble("tipo_cambio"));
 
-            // compraVenta.put("fecha_vencimiento", "2021-11-01T18:14:27.394-04:00");
-            // compraVenta.put("fecha_vencimiento", data.optString("fecha_vencimiento"));
-
             compraVenta.put("facturar", data.getBoolean("facturar"));
             compraVenta.put("factura", data.optJSONObject("factura"));
 
-            // alvaro
             if (data.has("cliente")) {
                 JSONObject data_extra = new JSONObject();
                 data_extra.put("razon_social", data.optJSONObject("cliente").optString("razon_social"));
@@ -82,7 +81,6 @@ public class CompraVentaCaja {
                 compraVenta.put("cliente", data_extra);
             }
 
-            System.out.println(compraVenta.toString(4));
             conectInstance.insertObject("compra_venta", compraVenta);
 
             data.put("compra_venta", compraVenta);
@@ -110,6 +108,7 @@ public class CompraVentaCaja {
             String obs = data.optString("observacion", null);
             if (obs == null) {
                 obs = (tipo == "compra" ? "Compra" : "Venta");
+                // obs = (tipo.equals("compra") ? "Compra" : "Venta");
             }
             data.put("observacion", obs);
 
@@ -181,10 +180,8 @@ public class CompraVentaCaja {
             }
 
             total_compra_venta = Math.round(total_compra_venta * 100.0) / 100.0; // Redondear a dos decimales
-            // total_compra_venta -= totalDescuento;
             double descuento = total_compra_venta * (totalDescuento);
-            descuento = Math.round(descuento * 100.0) / 100.0;
-            // Redondear a dos decimales
+            descuento = Math.round(descuento * 100.0) / 100.0; // Redondear a dos decimales
             compraVenta.put("descuento", descuento);
             conectInstance.editObject("compra_venta", compraVenta);
 
@@ -287,7 +284,9 @@ public class CompraVentaCaja {
             e.printStackTrace();
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
-            conectInstance.rollback();
+            if (conectInstance != null) {
+                conectInstance.rollback();
+            }
         } finally {
             if (conectInstance != null) {
                 conectInstance.close();
