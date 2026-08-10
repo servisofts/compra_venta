@@ -45,6 +45,14 @@ if [ -z "${SUDO_PASS:-}" ]; then
     echo
 fi
 
+
+# --- 3) Iniciar server.jar local en modo debug ---
+# Queda escuchando el debugger en el puerto 5005, sin pausar el arranque.
+# En VSCode: Run and Debug -> "Attach" -> puerto 5005.
+# Esta linea corre en primer plano (bloquea la terminal mientras el server esta arriba).
+echo -e "${CYAN}[3/3] Iniciando server.jar en modo debug (puerto $DEBUG_PORT)...${NC}"
+java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address="$DEBUG_PORT" -jar server.jar
+
 # --- 2) Reiniciar el servidor serp (docker-compose) ---
 # Igual que en test_produccion.sh: servisofts.sh es interactivo, se simulan los inputs
 # (1 = entorno serp, despues la password de sudo).
@@ -54,10 +62,3 @@ printf '1\n%s\n' "$SUDO_PASS" | ssh -tt "$SERP_SSH_HOST" "cd $SERP_REMOTE_DIR &&
 printf '1\n%s\n' "$SUDO_PASS" | ssh -tt "$SERP_SSH_HOST" "cd $SERP_REMOTE_DIR && ./servisofts.sh up -d"
 
 echo -e "${GREEN}Servidor serp reiniciado.${NC}"
-
-# --- 3) Iniciar server.jar local en modo debug ---
-# Queda escuchando el debugger en el puerto 5005, sin pausar el arranque.
-# En VSCode: Run and Debug -> "Attach" -> puerto 5005.
-# Esta linea corre en primer plano (bloquea la terminal mientras el server esta arriba).
-echo -e "${CYAN}[3/3] Iniciando server.jar en modo debug (puerto $DEBUG_PORT)...${NC}"
-java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address="$DEBUG_PORT" -jar server.jar

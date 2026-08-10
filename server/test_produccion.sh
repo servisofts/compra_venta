@@ -43,16 +43,7 @@ if [ -z "${SUDO_PASS:-}" ]; then
     echo
 fi
 
-# --- 2) Reiniciar el servidor de produccion (compra_venta) ---
-# Igual que en siles.sh: se mata el proceso del puerto en el servidor remoto y el
-# systemd/supervisor lo relanza solo con el server.jar de produccion.
-echo -e "${CYAN}[2/3] Reiniciando servidor de produccion en $SSH_HOST (puerto $PUERTO)...${NC}"
 
-REMOTE_KILL_CMD='PID=$(sudo ss -lptn "sport = :'"$PUERTO"'" | grep -oP "pid=\K\d+"); if [ -n "$PID" ]; then sudo kill -9 $PID; echo "Proceso $PID terminado, el servicio deberia relanzarse solo."; else echo "No se encontro ningun proceso escuchando en el puerto '"$PUERTO"'."; fi'
-
-printf '%s\n' "$SUDO_PASS" | ssh -tt "$SSH_HOST" "$REMOTE_KILL_CMD"
-
-echo -e "${GREEN}Servidor de produccion (compra_venta) reiniciado.${NC}"
 
 # --- 3) Reiniciar el servidor serp (docker-compose) ---
 # Ese servidor se maneja con servisofts.sh, que es interactivo: pide elegir el entorno
@@ -69,3 +60,14 @@ printf '1\n%s\n' "$SUDO_PASS" | ssh -tt "$SERP_SSH_HOST" "cd $SERP_REMOTE_DIR &&
 printf '1\n%s\n' "$SUDO_PASS" | ssh -tt "$SERP_SSH_HOST" "cd $SERP_REMOTE_DIR && ./servisofts.sh up -d"
 
 echo -e "${GREEN}Listo. Debug local apagado, produccion de compra_venta y servidor serp reiniciados.${NC}"
+
+# --- 2) Reiniciar el servidor de produccion (compra_venta) ---
+# Igual que en siles.sh: se mata el proceso del puerto en el servidor remoto y el
+# systemd/supervisor lo relanza solo con el server.jar de produccion.
+echo -e "${CYAN}[2/3] Reiniciando servidor de produccion en $SSH_HOST (puerto $PUERTO)...${NC}"
+
+REMOTE_KILL_CMD='PID=$(sudo ss -lptn "sport = :'"$PUERTO"'" | grep -oP "pid=\K\d+"); if [ -n "$PID" ]; then sudo kill -9 $PID; echo "Proceso $PID terminado, el servicio deberia relanzarse solo."; else echo "No se encontro ningun proceso escuchando en el puerto '"$PUERTO"'."; fi'
+
+printf '%s\n' "$SUDO_PASS" | ssh -tt "$SSH_HOST" "$REMOTE_KILL_CMD"
+
+echo -e "${GREEN}Servidor de produccion (compra_venta) reiniciado.${NC}"
