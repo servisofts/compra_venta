@@ -1,1 +1,4 @@
 server/server.jar
+
+# local deploy credentials, never commit
+server/.siles.env
