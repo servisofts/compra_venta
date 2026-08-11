@@ -25,29 +25,36 @@ else
     echo -e "${GREEN}Servidor local detenido.${NC}"
 fi
 
-# --- Datos del servidor de produccion ---
-# Se leen de .siles.env (no versionado en git) o se piden por consola si no existe
+# --- Datos de los servidores ---
+# Se leen de .siles.env (no versionado en git) o se piden por consola si falta algo
 ENV_FILE=".siles.env"
 if [ -f "$ENV_FILE" ]; then
     # shellcheck disable=SC1090
     source "$ENV_FILE"
-else
-    echo -e "${YELLOW}No se encontro $ENV_FILE con los datos del servidor.${NC}"
-    read -r -p "Host SSH (usuario@ip): " SSH_HOST
 fi
 
-PUERTO="${PUERTO:-10041}"
+if [ -z "${SSH_HOST:-}" ] || [ -z "${CV_REMOTE_DIR:-}" ]; then
+    echo -e "${YELLOW}No se encontraron SSH_HOST / CV_REMOTE_DIR en $ENV_FILE.${NC}"
+    read -r -p "Host SSH de compra_venta (usuario@ip): " SSH_HOST
+    read -r -p "Directorio del docker-compose (ej: ~/servicios/compra_venta): " CV_REMOTE_DIR
+fi
 
 if [ -z "${SUDO_PASS:-}" ]; then
     read -r -s -p "Password de sudo en el servidor: " SUDO_PASS
     echo
 fi
 
+# --- 2) Reiniciar compra_venta (docker-compose) ---
+# ~/servicios/compra_venta tiene su propio docker-compose.yaml + servisofts.sh, igual que serp.
+# Es interactivo: pide elegir entorno (1 = compra_venta) y despues la password de sudo.
+echo -e "${CYAN}[2/3] Reiniciando compra_venta en $SSH_HOST ($CV_REMOTE_DIR)...${NC}"
 
+printf '1\n%s\n' "$SUDO_PASS" | ssh -tt "$SSH_HOST" "cd $CV_REMOTE_DIR && ./servisofts.sh down"
+printf '1\n%s\n' "$SUDO_PASS" | ssh -tt "$SSH_HOST" "cd $CV_REMOTE_DIR && ./servisofts.sh up -d"
+
+echo -e "${GREEN}compra_venta reiniciado.${NC}"
 
 # --- 3) Reiniciar el servidor serp (docker-compose) ---
-# Ese servidor se maneja con servisofts.sh, que es interactivo: pide elegir el entorno
-# (1 = serp) y despues la password de sudo. Se simulan esos inputs igual que en app/siles.sh.
 if [ -z "${SERP_SSH_HOST:-}" ] || [ -z "${SERP_REMOTE_DIR:-}" ]; then
     echo -e "${YELLOW}No se encontraron SERP_SSH_HOST / SERP_REMOTE_DIR en $ENV_FILE.${NC}"
     read -r -p "Host SSH del servidor serp (usuario@ip): " SERP_SSH_HOST
@@ -59,15 +66,4 @@ echo -e "${CYAN}[3/3] Reiniciando servidor serp en $SERP_SSH_HOST...${NC}"
 printf '1\n%s\n' "$SUDO_PASS" | ssh -tt "$SERP_SSH_HOST" "cd $SERP_REMOTE_DIR && ./servisofts.sh down"
 printf '1\n%s\n' "$SUDO_PASS" | ssh -tt "$SERP_SSH_HOST" "cd $SERP_REMOTE_DIR && ./servisofts.sh up -d"
 
-echo -e "${GREEN}Listo. Debug local apagado, produccion de compra_venta y servidor serp reiniciados.${NC}"
-
-# --- 2) Reiniciar el servidor de produccion (compra_venta) ---
-# Igual que en siles.sh: se mata el proceso del puerto en el servidor remoto y el
-# systemd/supervisor lo relanza solo con el server.jar de produccion.
-echo -e "${CYAN}[2/3] Reiniciando servidor de produccion en $SSH_HOST (puerto $PUERTO)...${NC}"
-
-REMOTE_KILL_CMD='PID=$(sudo ss -lptn "sport = :'"$PUERTO"'" | grep -oP "pid=\K\d+"); if [ -n "$PID" ]; then sudo kill -9 $PID; echo "Proceso $PID terminado, el servicio deberia relanzarse solo."; else echo "No se encontro ningun proceso escuchando en el puerto '"$PUERTO"'."; fi'
-
-printf '%s\n' "$SUDO_PASS" | ssh -tt "$SSH_HOST" "$REMOTE_KILL_CMD"
-
-echo -e "${GREEN}Servidor de produccion (compra_venta) reiniciado.${NC}"
+echo -e "${GREEN}Listo. Debug local apagado, compra_venta y serp reiniciados.${NC}"
