@@ -52,7 +52,9 @@ public class CompraVentaCaja {
             JSONObject compraVenta = new JSONObject();
             compraVenta.put("key", data.getString("key_compra_venta"));
             compraVenta.put("estado", 1);
-            compraVenta.put("fecha_on", SUtil.now());
+            // Carga histórica (sync con Calistenia): la venta va con la fecha contable del mes que se está cargando.
+            String fechaContable = data.optString("fecha_contable", "");
+            compraVenta.put("fecha_on", fechaContable.matches("\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2}.*") ? fechaContable.replace(' ', 'T') : SUtil.now());
             compraVenta.put("key_usuario", data.getString("key_usuario"));
             compraVenta.put("descripcion", data.getString("descripcion"));
             compraVenta.put("observacion", data.optString("observacion"));
