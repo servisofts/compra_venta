@@ -699,9 +699,10 @@ public class CompraVenta {
 
         JSONObject contabilidadEnviroment = Contabilidad.getEnviroment(compraVenta.getString("key_empresa"), "IVA");
 
-        double iva = 1;
+        // El IVA se guarda en porcentaje (13 = 13 %), como lo usan caja, inventario y contabilidad.
+        double iva = 0;
         if (contabilidadEnviroment.has("observacion")) {
-            iva = Double.parseDouble(contabilidadEnviroment.getString("observacion"));
+            iva = Double.parseDouble(contabilidadEnviroment.getString("observacion")) / 100;
         }
 
         for (int i = 0; i < JSONObject.getNames(compraVentaDetalle).length; i++) {
@@ -774,10 +775,11 @@ public class CompraVenta {
         comprobante.put("observacion", compraVenta.getString("observacion"));
 
         JSONObject contabilidadEnviroment = Contabilidad.getEnviroment(compraVenta.getString("key_empresa"), "IVA");
-        double iva = Double.parseDouble(contabilidadEnviroment.getString("observacion"));
+        // IVA e IT se guardan en porcentaje (13 = 13 %).
+        double iva = Double.parseDouble(contabilidadEnviroment.getString("observacion")) / 100;
 
         JSONObject contabilidadEnviromentIt = Contabilidad.getEnviroment(compraVenta.getString("key_empresa"), "IT");
-        double it = Double.parseDouble(contabilidadEnviromentIt.getString("observacion"));
+        double it = Double.parseDouble(contabilidadEnviromentIt.getString("observacion")) / 100;
 
         boolean isFacturado = false;
 
