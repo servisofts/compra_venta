@@ -13,7 +13,7 @@ import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 
 public class AmortizarCuotas {
 
-    public AmortizarCuotas(JSONObject obj, SSSessionAbstract session, String tipo) {
+    public AmortizarCuotas(JSONObject obj, SSSessionAbstract session, String tipoSolicitado) {
         ConectInstance conectInstance = null;
         try {
             conectInstance = new ConectInstance();
@@ -22,6 +22,16 @@ public class AmortizarCuotas {
             // Capturar la data devuelta
             JSONObject data = obj.getJSONObject("data");
 
+            // Venta o compra lo decide la compra_venta de las cuotas, no la pantalla: el popup de caja no lo enviaba y
+            // los cobros a clientes quedaban como pagos a proveedores (asiento al revés).
+            JSONArray tiposCuotas = conectInstance.ejecutarConsultaArray("""
+                    select coalesce(array_to_json(array_agg(distinct compra_venta.tipo)), '[]'::json) as json
+                    from cuota join compra_venta on compra_venta.key = cuota.key_compra_venta
+                    where cuota.key in (select json_array_elements_text('%s')::text)
+                    """.formatted(data.getJSONArray("cuotas").toString()));
+            if (tiposCuotas.length() > 1) throw new Exception("No se pueden pagar en un mismo movimiento cuotas de compras y de ventas.");
+            final String tipo = tiposCuotas.length() == 1 ? tiposCuotas.getString(0) : tipoSolicitado;
+            data.put("tipo", tipo);
 
             AsientoContable  asiento = new AsientoContable(tipo.equals("venta") ? AsientoContableTipo.ingreso : AsientoContableTipo.egreso);
             asiento.descripcion = "Amortización de cuotas";
