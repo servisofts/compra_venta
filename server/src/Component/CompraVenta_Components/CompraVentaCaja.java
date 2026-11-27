@@ -251,6 +251,31 @@ public class CompraVentaCaja {
                 cuotas.put(cuota);
             }
             montoBase = Math.round(montoBase * 100.0) / 100.0;
+            // Compra sin factura con retención (impuestos fase 3b): al retener se le paga al proveedor el total menos la
+            // retención; contabilidad calcula cuánto (impuesto/calcular) y lo asienta.
+            JSONObject retencion = data.optJSONObject("retencion");
+            if (tipo.equals("compra") && retencion != null && !retencion.optString("grupo", "").isEmpty()) {
+                if (data.optBoolean("facturar", false))
+                    throw new Exception("La retencion es solo para compras sin factura.");
+                JSONArray lineas = new JSONArray();
+                JSONArray det = data.getJSONArray("detalle");
+                for (int i = 0; i < det.length(); i++) {
+                    JSONObject d = det.getJSONObject(i);
+                    double t = d.getDouble("cantidad") * d.getDouble("precio_unitario_base") - d.optDouble("descuento", 0);
+                    lineas.put(new JSONObject().put("key", String.valueOf(i)).put("total", Math.round(t * 100.0) / 100.0));
+                }
+                JSONObject resp = SocketCliente.sendSinc("contabilidad", new JSONObject()
+                        .put("component", "impuesto").put("type", "calcular").put("key_empresa", compraVenta.getString("key_empresa"))
+                        .put("data", new JSONObject().put("aplica", "compra").put("facturar", false).put("descuento", descuento)
+                                .put("detalle", lineas).put("retencion", retencion)));
+                if (resp == null || !"exito".equals(resp.optString("estado")))
+                    throw new Exception(resp == null ? "Contabilidad no respondio al calcular la retencion."
+                            : resp.optString("error", "Error al calcular la retencion."));
+                JSONObject ret = resp.getJSONObject("data").optJSONObject("retencion");
+                if (ret == null)
+                    throw new Exception("La empresa no tiene configurada la retencion " + retencion.optString("grupo") + ".");
+                total_compra_venta = Math.round(ret.getDouble("pago_proveedor") * 100.0) / 100.0;
+            }
             if (total_compra_venta != montoBase) {
                 throw new Exception("El total de la " + tipo + " no coincide con el total pagado, " + total_compra_venta
                         + " != " + montoBase);
